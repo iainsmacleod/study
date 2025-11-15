@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Study Guide</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- https://4.files.edl.io/9409/06/12/25/175450-e553e8d3-0176-4d6e-83ab-d19fb87e2427.pdf -->
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Math Study Guide</h1>
+            <p class="subtitle">Practice problems with step-by-step solutions</p>
+        </header>
+
+        <div class="controls">
+            <button id="toggleAll" class="btn btn-primary">Show All Answers</button>
+            <button id="hideAll" class="btn btn-secondary">Hide All Answers</button>
+        </div>
+
+        <div class="progress-section">
+            <div class="progress-header">
+                <h3>Progress</h3>
+                <div class="score-display">
+                    <span class="score-text">Score: <span id="score">0</span> / <span id="total">40</span></span>
+                    <span class="score-percentage" id="scorePercentage">0%</span>
+                </div>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="completed">0</span> / <span id="totalProblems">40</span> questions completed (<span id="progressPercentage">0%</span>)
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- Fraction Arithmetic -->
+            <section class="section">
+                <h2>Fraction Arithmetic</h2>
+                <div class="problems" id="fractions"></div>
+            </section>
+
+            <!-- Systems by Graphing -->
+            <section class="section">
+                <h2>Solve by Graphing</h2>
+                <div class="problems" id="graphing"></div>
+            </section>
+
+            <!-- Systems by Substitution -->
+            <section class="section">
+                <h2>Solve by Substitution</h2>
+                <div class="problems" id="substitution"></div>
+            </section>
+
+            <!-- Systems by Elimination -->
+            <section class="section">
+                <h2>Solve by Elimination</h2>
+                <div class="problems" id="elimination"></div>
+            </section>
+
+            <!-- Factoring -->
+            <section class="section">
+                <h2>Factoring</h2>
+                <div class="problems" id="factoring"></div>
+            </section>
+
+            <!-- Solving Equations -->
+            <section class="section">
+                <h2>Solving Equations</h2>
+                <div class="problems" id="equations"></div>
+            </section>
+
+            <!-- Solving Inequalities -->
+            <section class="section">
+                <h2>Solving Inequalities</h2>
+                <div class="problems" id="inequalities"></div>
+            </section>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  math-study:
+    image: iainsmacleod/mathtest:latest
+    container_name: math-study-guide
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/log/nginx
+      - /var/run
+      - /tmp
+    labels:
+      - "com.example.description=Math Study Guide Application"
+      - "com.example.version=1.0"
+
