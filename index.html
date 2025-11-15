@@ -12,12 +12,68 @@
         <header>
             <h1>Math Study Guide</h1>
             <p class="subtitle">Practice problems with step-by-step solutions</p>
+            <div class="auth-section" id="authSection">
+                <div id="authButtonContainer">
+                    <button class="btn btn-auth" id="googleLogin">Login with Google</button>
+                    <button class="btn btn-logout" id="logoutBtn" style="display: none;">Logout</button>
+                </div>
+                <div id="userInfo" class="user-info" style="display: none;">
+                    <span id="userEmail"></span>
+                </div>
+            </div>
         </header>
 
-        <div class="controls">
-            <button id="toggleAll" class="btn btn-primary">Show All Answers</button>
-            <button id="hideAll" class="btn btn-secondary">Hide All Answers</button>
+        <!-- Course Selection Screen -->
+        <div id="courseSelection" class="selection-screen">
+            <h2>Choose Course</h2>
+            <p class="selection-subtitle">Select a course to study</p>
+            
+            <div class="course-tags" id="courseTags">
+                <!-- Courses will be loaded here -->
+            </div>
         </div>
+
+        <!-- Category Selection Screen -->
+        <div id="categorySelection" class="selection-screen" style="display: none;">
+            <h2>Choose Categories</h2>
+            <p class="selection-subtitle">Select one or more categories, or choose Random for all categories</p>
+            
+            <div class="back-button-container">
+                <button id="backToCourseBtn" class="btn btn-secondary">← Back to Courses</button>
+            </div>
+            
+            <div class="category-tags" id="categoryTags">
+                <!-- Categories will be loaded here -->
+            </div>
+            
+            <div class="random-option">
+                <button class="category-tag random-tag" id="randomTag">
+                    <span class="tag-icon">🎲</span>
+                    Random (All Categories)
+                </button>
+            </div>
+            
+            <div class="question-count-selector">
+                <label>Number of Questions:</label>
+                <div class="count-buttons">
+                    <button class="count-btn" data-count="5">5</button>
+                    <button class="count-btn" data-count="10">10</button>
+                    <button class="count-btn" data-count="20">20</button>
+                    <button class="count-btn" data-count="30">30</button>
+                    <button class="count-btn active" data-count="all">All</button>
+                </div>
+            </div>
+            
+            <button id="startStudyBtn" class="btn btn-primary btn-large" disabled>Start Study</button>
+        </div>
+
+        <!-- Main Content (hidden initially) -->
+        <div id="mainContent" class="main-content" style="display: none;">
+            <div class="controls">
+                <button id="newStudyBtn" class="btn btn-secondary">New Study Session</button>
+                <button id="toggleAll" class="btn btn-primary">Show All Answers</button>
+                <button id="hideAll" class="btn btn-secondary">Hide All Answers</button>
+            </div>
 
         <div class="progress-section">
             <div class="progress-header">
@@ -37,52 +93,13 @@
             </div>
         </div>
 
-        <div class="content">
-            <!-- Fraction Arithmetic -->
-            <section class="section">
-                <h2>Fraction Arithmetic</h2>
-                <div class="problems" id="fractions"></div>
-            </section>
-
-            <!-- Systems by Graphing -->
-            <section class="section">
-                <h2>Solve by Graphing</h2>
-                <div class="problems" id="graphing"></div>
-            </section>
-
-            <!-- Systems by Substitution -->
-            <section class="section">
-                <h2>Solve by Substitution</h2>
-                <div class="problems" id="substitution"></div>
-            </section>
-
-            <!-- Systems by Elimination -->
-            <section class="section">
-                <h2>Solve by Elimination</h2>
-                <div class="problems" id="elimination"></div>
-            </section>
-
-            <!-- Factoring -->
-            <section class="section">
-                <h2>Factoring</h2>
-                <div class="problems" id="factoring"></div>
-            </section>
-
-            <!-- Solving Equations -->
-            <section class="section">
-                <h2>Solving Equations</h2>
-                <div class="problems" id="equations"></div>
-            </section>
-
-            <!-- Solving Inequalities -->
-            <section class="section">
-                <h2>Solving Inequalities</h2>
-                <div class="problems" id="inequalities"></div>
-            </section>
+            <div class="content" id="questionsContent">
+                <!-- Questions will be loaded here -->
+            </div>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=3"></script>
 </body>
 </html>
 

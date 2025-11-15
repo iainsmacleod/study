@@ -5,11 +5,21 @@ services:
     image: iainsmacleod/mathtest:latest
     container_name: math-study-guide
     ports:
-      - "8080:8080"
+      - "8585:8080"
     restart: unless-stopped
+    environment:
+  - NODE_ENV=production
+  - PORT=3000
+  - FRONTEND_URL=https://study.macleod.systems
+  - DB_PATH=/app/data/study.db
+  - SESSION_SECRET=${SESSION_SECRET:-change-me-in-production}
+  - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+  - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+  - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL:-https://study.macleod.systems/api/auth/google/callback}
+    volumes:
+      - study-data:/app/data
     security_opt:
       - no-new-privileges:true
-    read_only: true
     tmpfs:
       - /var/cache/nginx
       - /var/log/nginx
@@ -17,5 +27,9 @@ services:
       - /tmp
     labels:
       - "com.example.description=Math Study Guide Application"
-      - "com.example.version=1.0"
+      - "com.example.version=2.0"
+
+volumes:
+  study-data:
+    driver: local
 

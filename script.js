@@ -1,72 +1,19 @@
-// Track attempts for each problem
-const attempts = {};
+// API base URL - use relative path so nginx can proxy
+const API_BASE = '/api';
 
-// Get total number of problems
-function getTotalProblems() {
-    let total = 0;
-    Object.values(problems).forEach(category => {
-        total += category.length;
-    });
-    return total;
-}
+// Debug: Log that script loaded
+console.log('Study script loaded, version 3');
 
-// Problem data with normalized answers for comparison
-const problems = {
-    fractions: [
-        { num: 1, question: "$\\frac{42}{5} + \\frac{11}{3}$", answer: "$\\frac{181}{15}$", normalized: "181/15" },
-        { num: 2, question: "$-\\frac{5}{4} - \\frac{36}{5}$", answer: "$-\\frac{169}{20}$", normalized: "-169/20" },
-        { num: 3, question: "$\\frac{3}{4} - \\frac{5}{6}$", answer: "$-\\frac{1}{12}$", normalized: "-1/12" },
-        { num: 4, question: "$-\\frac{3}{2} \\times \\frac{11}{6}$", answer: "$-\\frac{11}{4}$", normalized: "-11/4" },
-        { num: 5, question: "$-\\frac{9}{8} \\div \\frac{3}{16}$", answer: "$-6$", normalized: "-6" },
-        { num: 6, question: "$\\frac{65}{38} \\div \\frac{195}{76}$", answer: "$\\frac{2}{3}$", normalized: "2/3" }
-    ],
-    graphing: [
-        { num: 7, question: "$y = -9x - 9$<br>$y = -x + 7$", answer: "$(-2, 9)$", normalized: "(-2,9)" },
-        { num: 8, question: "$y = -\\frac{11}{4}x - 5$<br>$y = \\frac{3}{4}x + 9$", answer: "$(-4, 6)$", normalized: "(-4,6)" },
-        { num: 9, question: "$x + 2y = 8$<br>$5x - 2y = 4$", answer: "$(2, 3)$", normalized: "(2,3)" },
-        { num: 10, question: "$5x + 2y = 2$<br>$5x + 2y = 4$", answer: "No solution", normalized: "nosolution" }
-    ],
-    substitution: [
-        { num: 11, question: "$-3x + 5y = 7$<br>$x + 7y = 15$", answer: "$(1, 2)$", normalized: "(1,2)" },
-        { num: 12, question: "$-10x - 6y = 26$<br>$x - 2y = 0$", answer: "$(-2, -1)$", normalized: "(-2,-1)" },
-        { num: 13, question: "$2x + 14y = -2$<br>$x + 7y = 5$", answer: "No solution", normalized: "nosolution" },
-        { num: 14, question: "$x + 4y = -28$<br>$-3x - 12y = 84$", answer: "Infinite number of solutions", normalized: "infinitenumberofsolutions" }
-    ],
-    elimination: [
-        { num: 15, question: "$-2x - 10y = 6$<br>$-10x - 20y = 0$", answer: "$(2, -1)$", normalized: "(2,-1)" },
-        { num: 16, question: "$6x + 3y = 9$<br>$12x + 5y = 13$", answer: "$(-1, 5)$", normalized: "(-1,5)" },
-        { num: 17, question: "$-10x - 4y = 4$<br>$5x - 9y = 9$", answer: "$(0, -1)$", normalized: "(0,-1)" },
-        { num: 18, question: "$-3x + 2y = 1$<br>$9x - 6y = 3$", answer: "No solution", normalized: "nosolution" }
-    ],
-    factoring: [
-        { num: 19, question: "$m^2 + 5m - 36$", answer: "$(m - 4)(m + 9)$", normalized: "(m-4)(m+9)" },
-        { num: 20, question: "$k^2 - 4k - 60$", answer: "$(k - 10)(k + 6)$", normalized: "(k-10)(k+6)" },
-        { num: 21, question: "$n^2 - 11n + 10$", answer: "$(n - 1)(n - 10)$", normalized: "(n-1)(n-10)" },
-        { num: 22, question: "$p^2 + 8p + 15$", answer: "$(p + 5)(p + 3)$", normalized: "(p+5)(p+3)" },
-        { num: 23, question: "$x^2 + 14x + 45$", answer: "$(x + 5)(x + 9)$", normalized: "(x+5)(x+9)" },
-        { num: 24, question: "$n^2 - 2n - 8$", answer: "$(n - 4)(n + 2)$", normalized: "(n-4)(n+2)" },
-        { num: 25, question: "$3k^2 + 6k - 105$", answer: "$3(k - 5)(k + 7)$", normalized: "3(k-5)(k+7)" },
-        { num: 26, question: "$6x^2 + 24x - 126$", answer: "$6(x - 3)(x + 7)$", normalized: "6(x-3)(x+7)" },
-        { num: 27, question: "$2x^2 - 162$", answer: "$2(x - 9)(x + 9)$", normalized: "2(x-9)(x+9)" },
-        { num: 28, question: "$v^3 - v^2$", answer: "$v^2(v - 1)$", normalized: "v^2(v-1)" },
-        { num: 29, question: "$m^2 - 49$", answer: "$(m - 7)(m + 7)$", normalized: "(m-7)(m+7)" },
-        { num: 30, question: "$a^2 - 2a$", answer: "$a(a - 2)$", normalized: "a(a-2)" },
-        { num: 31, question: "$4b^2 + 4b$", answer: "$4b(b + 1)$", normalized: "4b(b+1)" },
-        { num: 32, question: "$k^3 - 36k$", answer: "$k(k - 6)(k + 6)$", normalized: "k(k-6)(k+6)" }
-    ],
-    equations: [
-        { num: 33, question: "$-8(1 - 4b) = -4(b + 10) + 4b$", answer: "$\\{-1\\}$", normalized: "-1" },
-        { num: 34, question: "$-3(x + 2) - 8(x + 8) = 4x - 5x$", answer: "$\\{-7\\}$", normalized: "-7" },
-        { num: 35, question: "$-\\frac{14}{5}n - \\frac{15}{4} + \\frac{11}{4}n = -\\frac{92}{25}$", answer: "$\\{-\\frac{7}{5}\\}$", normalized: "-7/5" },
-        { num: 36, question: "$-\\frac{187}{48} = \\frac{11}{6}x - \\frac{13}{4}x$", answer: "$\\{\\frac{11}{4}\\}$", normalized: "11/4" },
-        { num: 37, question: "$\\frac{517}{12} = -\\frac{11}{3}\\left(4a - \\frac{7}{4}\\right)$", answer: "$\\{-\\frac{5}{2}\\}$", normalized: "-5/2" },
-        { num: 38, question: "$4\\left(2n - \\frac{3}{2}\\right) + 2n = -\\frac{128}{3}$", answer: "$\\{-\\frac{11}{3}\\}$", normalized: "-11/3" }
-    ],
-    inequalities: [
-        { num: 39, question: "$11(p - 1) < -11(p - 5)$", answer: "$p < 3$", normalized: "p<3" },
-        { num: 40, question: "$-6(9m - 4) + 9m \\leq -6m - (3m + 12)$", answer: "$m \\geq 1$", normalized: "m>=1" }
-    ]
-};
+// State
+let courses = [];
+let selectedCourse = null;
+let categories = [];
+let selectedCategories = [];
+let isRandom = false;
+let questionCount = 'all';
+let currentQuestions = [];
+let attempts = {};
+let currentUser = null;
 
 // Initialize MathJax
 window.MathJax = {
@@ -82,14 +29,562 @@ script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
 script.async = true;
 document.head.appendChild(script);
 
-// Normalize user input for comparison
+// Initialize app - wait for everything to be ready
+function initializeApp() {
+    // Double-check that all required elements exist
+    const requiredElements = ['googleLogin', 'logoutBtn', 'userInfo', 'userEmail'];
+    const allReady = requiredElements.every(id => {
+        const el = document.getElementById(id);
+        return el && el.style;
+    });
+    
+    if (!allReady) {
+        setTimeout(initializeApp, 100);
+        return;
+    }
+    
+    setupEventListeners();
+    checkAuth();
+    loadCourses();
+}
+
+document.addEventListener('DOMContentLoaded', initializeApp);
+
+// Also try if DOM is already loaded (for cached pages)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    initializeApp();
+}
+
+// Check authentication status
+async function checkAuth() {
+    // Wait for DOM elements to be available
+    const googleLogin = document.getElementById('googleLogin');
+    if (!googleLogin || !googleLogin.style) {
+        setTimeout(checkAuth, 100);
+        return;
+    }
+    
+    try {
+        console.log('Checking auth status...');
+        const response = await fetch(`${API_BASE}/auth/user`, { 
+            credentials: 'include',
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        console.log('Auth response status:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`Auth check failed: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Auth response data:', data);
+        
+        if (data.authenticated && data.user) {
+            console.log('User is authenticated:', data.user);
+            currentUser = data.user;
+            showUserInfo(data.user);
+        } else {
+            console.log('User is not authenticated');
+            currentUser = null;
+            showLoginButtons();
+        }
+    } catch (error) {
+        console.error('Auth check failed:', error);
+        currentUser = null;
+        // Only show login buttons if elements are ready
+        const loginBtn = document.getElementById('googleLogin');
+        if (loginBtn && loginBtn.style) {
+            showLoginButtons();
+        } else {
+            // Retry after a short delay if elements aren't ready
+            setTimeout(() => {
+                const retryBtn = document.getElementById('googleLogin');
+                if (retryBtn && retryBtn.style) {
+                    showLoginButtons();
+                }
+            }, 200);
+        }
+    }
+}
+
+// Show login buttons
+function showLoginButtons() {
+    // Safety check - ensure we're not called before DOM is ready
+    if (document.readyState === 'loading') {
+        setTimeout(showLoginButtons, 100);
+        return;
+    }
+    
+    try {
+        const googleLogin = document.getElementById('googleLogin');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const userInfo = document.getElementById('userInfo');
+        
+        // Double-check elements exist and have style property
+        if (!googleLogin || !googleLogin.style) {
+            console.warn('googleLogin element not ready');
+            return;
+        }
+        if (!logoutBtn || !logoutBtn.style) {
+            console.warn('logoutBtn element not ready');
+            return;
+        }
+        if (!userInfo || !userInfo.style) {
+            console.warn('userInfo element not ready');
+            return;
+        }
+        
+        googleLogin.style.display = 'inline-block';
+        logoutBtn.style.display = 'none';
+        userInfo.style.display = 'none';
+    } catch (error) {
+        console.error('Error in showLoginButtons:', error);
+    }
+}
+
+// Show user info
+function showUserInfo(user) {
+    // Safety check - ensure we're not called before DOM is ready
+    if (document.readyState === 'loading') {
+        setTimeout(() => showUserInfo(user), 100);
+        return;
+    }
+    
+    try {
+        const googleLogin = document.getElementById('googleLogin');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const userInfo = document.getElementById('userInfo');
+        const userEmail = document.getElementById('userEmail');
+        
+        // Double-check elements exist and have style property
+        if (!googleLogin || !googleLogin.style) {
+            console.warn('googleLogin element not ready');
+            return;
+        }
+        if (!logoutBtn || !logoutBtn.style) {
+            console.warn('logoutBtn element not ready');
+            return;
+        }
+        if (!userInfo || !userInfo.style) {
+            console.warn('userInfo element not ready');
+            return;
+        }
+        if (!userEmail) {
+            console.warn('userEmail element not ready');
+            return;
+        }
+        
+        googleLogin.style.display = 'none';
+        logoutBtn.style.display = 'inline-block';
+        userInfo.style.display = 'flex';
+        userEmail.textContent = user?.email || 'User';
+    } catch (error) {
+        console.error('Error in showUserInfo:', error);
+    }
+}
+
+// Load courses from API
+async function loadCourses() {
+    try {
+        const response = await fetch(`${API_BASE}/courses`);
+        courses = await response.json();
+        renderCourseTags();
+    } catch (error) {
+        console.error('Failed to load courses:', error);
+    }
+}
+
+// Render course tags
+function renderCourseTags() {
+    const container = document.getElementById('courseTags');
+    container.innerHTML = '';
+    
+    courses.forEach(course => {
+        const tag = document.createElement('button');
+        tag.className = 'course-tag';
+        tag.textContent = course.name;
+        tag.dataset.courseId = course.id;
+        tag.dataset.courseName = course.name;
+        tag.addEventListener('click', () => selectCourse(course.name));
+        container.appendChild(tag);
+    });
+}
+
+// Select course and load categories
+async function selectCourse(courseName) {
+    selectedCourse = courseName;
+    
+    // Load categories for this course
+    try {
+        const response = await fetch(`${API_BASE}/categories?course=${encodeURIComponent(courseName)}`);
+        categories = await response.json();
+        
+        // Hide course selection, show category selection
+        document.getElementById('courseSelection').style.display = 'none';
+        document.getElementById('categorySelection').style.display = 'block';
+        
+        renderCategoryTags();
+        resetCategorySelection();
+    } catch (error) {
+        console.error('Failed to load categories:', error);
+    }
+}
+
+// Load categories from API (for current course)
+async function loadCategories() {
+    if (!selectedCourse) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/categories?course=${encodeURIComponent(selectedCourse)}`);
+        categories = await response.json();
+        renderCategoryTags();
+    } catch (error) {
+        console.error('Failed to load categories:', error);
+    }
+}
+
+// Render category tags
+function renderCategoryTags() {
+    const container = document.getElementById('categoryTags');
+    container.innerHTML = '';
+    
+    categories.forEach(category => {
+        const tag = document.createElement('button');
+        tag.className = 'category-tag';
+        tag.textContent = category.description || category.name;
+        tag.dataset.categoryId = category.id;
+        tag.dataset.categoryName = category.name;
+        tag.addEventListener('click', () => toggleCategory(category.name, tag));
+        container.appendChild(tag);
+    });
+}
+
+// Toggle category selection
+function toggleCategory(categoryName, element) {
+    // If random is selected, deselect it
+    if (isRandom) {
+        isRandom = false;
+        document.getElementById('randomTag').classList.remove('selected');
+    }
+    
+    const index = selectedCategories.indexOf(categoryName);
+    if (index > -1) {
+        selectedCategories.splice(index, 1);
+        element.classList.remove('selected');
+    } else {
+        selectedCategories.push(categoryName);
+        element.classList.add('selected');
+    }
+    
+    updateStartButton();
+}
+
+// Toggle random selection
+function toggleRandom() {
+    const randomTag = document.getElementById('randomTag');
+    
+    if (isRandom) {
+        isRandom = false;
+        randomTag.classList.remove('selected');
+        // Deselect all categories
+        selectedCategories = [];
+        document.querySelectorAll('.category-tag').forEach(tag => {
+            tag.classList.remove('selected');
+        });
+    } else {
+        isRandom = true;
+        randomTag.classList.add('selected');
+        // Deselect all categories
+        selectedCategories = [];
+        document.querySelectorAll('.category-tag').forEach(tag => {
+            tag.classList.remove('selected');
+        });
+    }
+    
+    updateStartButton();
+}
+
+// Update start button state
+function updateStartButton() {
+    const startBtn = document.getElementById('startStudyBtn');
+    startBtn.disabled = !isRandom && selectedCategories.length === 0;
+}
+
+// Setup event listeners
+function setupEventListeners() {
+    // Back to course button
+    document.getElementById('backToCourseBtn')?.addEventListener('click', () => {
+        document.getElementById('categorySelection').style.display = 'none';
+        document.getElementById('courseSelection').style.display = 'block';
+        selectedCourse = null;
+        resetCategorySelection();
+    });
+    
+    // Random tag
+    document.getElementById('randomTag')?.addEventListener('click', toggleRandom);
+    
+    // Question count buttons
+    document.querySelectorAll('.count-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.count-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            questionCount = btn.dataset.count;
+        });
+    });
+    
+    // Start study button
+    document.getElementById('startStudyBtn').addEventListener('click', startStudy);
+    
+    // New study session button
+    document.getElementById('newStudyBtn')?.addEventListener('click', () => {
+        document.getElementById('courseSelection').style.display = 'block';
+        document.getElementById('categorySelection').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'none';
+        selectedCourse = null;
+        resetSelection();
+    });
+    
+    // Auth buttons
+    const googleLoginBtn = document.getElementById('googleLogin');
+    if (googleLoginBtn) {
+        googleLoginBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('Login button clicked, redirecting to:', `${API_BASE}/auth/google`);
+            window.location.href = `${API_BASE}/auth/google`;
+        });
+    } else {
+        console.warn('Google login button not found when setting up event listener');
+    }
+    
+    document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+        try {
+            await fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' });
+            currentUser = null;
+            showLoginButtons();
+        } catch (error) {
+            console.error('Logout failed:', error);
+        }
+    });
+    
+    // Show/hide all answers
+    document.getElementById('toggleAll')?.addEventListener('click', showAllAnswers);
+    document.getElementById('hideAll')?.addEventListener('click', hideAllAnswers);
+}
+
+// Reset category selection
+function resetCategorySelection() {
+    selectedCategories = [];
+    isRandom = false;
+    questionCount = 'all';
+    document.querySelectorAll('.category-tag').forEach(tag => tag.classList.remove('selected'));
+    const randomTag = document.getElementById('randomTag');
+    if (randomTag) randomTag.classList.remove('selected');
+    document.querySelectorAll('.count-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.count === 'all') btn.classList.add('active');
+    });
+    updateStartButton();
+}
+
+// Reset selection (full reset)
+function resetSelection() {
+    selectedCourse = null;
+    resetCategorySelection();
+}
+
+// Start study session
+async function startStudy() {
+    if (!selectedCourse) {
+        alert('Please select a course first.');
+        return;
+    }
+    
+    try {
+        // Build query parameters
+        const params = new URLSearchParams();
+        
+        // Course is required
+        params.append('course', selectedCourse);
+        
+        if (isRandom) {
+            params.append('random', 'true');
+        } else if (selectedCategories.length > 0) {
+            params.append('categories', selectedCategories.join(','));
+        }
+        
+        if (questionCount !== 'all') {
+            params.append('count', questionCount);
+        }
+        
+        // Fetch questions
+        const response = await fetch(`${API_BASE}/questions?${params.toString()}`);
+        currentQuestions = await response.json();
+        
+        if (currentQuestions.length === 0) {
+            alert('No questions found for the selected criteria.');
+            return;
+        }
+        
+        // Hide category selection, show main content
+        document.getElementById('categorySelection').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+        
+        // Initialize attempts
+        attempts = {};
+        currentQuestions.forEach(q => {
+            attempts[`problem-${q.id}`] = { wrong: 0, correct: false };
+        });
+        
+        // Render questions
+        renderQuestions();
+        
+        // Load user progress if authenticated
+        if (currentUser) {
+            await loadUserProgress();
+        }
+        
+        // Update progress display
+        updateProgress();
+    } catch (error) {
+        console.error('Failed to start study:', error);
+        alert('Failed to load questions. Please try again.');
+    }
+}
+
+// Render questions
+function renderQuestions() {
+    const container = document.getElementById('questionsContent');
+    container.innerHTML = '';
+    
+    // Group by category
+    const byCategory = {};
+    currentQuestions.forEach(q => {
+        const catName = q.category.name;
+        if (!byCategory[catName]) {
+            byCategory[catName] = [];
+        }
+        byCategory[catName].push(q);
+    });
+    
+    // Render each category section
+    Object.keys(byCategory).forEach(catName => {
+        const section = document.createElement('section');
+        section.className = 'section';
+        
+        const category = currentQuestions.find(q => q.category.name === catName).category;
+        section.innerHTML = `<h2>${category.description || category.name}</h2><div class="problems" id="category-${category.name}"></div>`;
+        
+        const problemsContainer = section.querySelector('.problems');
+        
+        byCategory[catName].forEach(problem => {
+            const problemId = `problem-${problem.id}`;
+            const card = document.createElement('div');
+            card.className = 'problem-card';
+            card.innerHTML = `
+                <div class="problem-number">Problem ${problem.num || problem.id}</div>
+                <div class="problem-text">${problem.question}</div>
+                <div class="answer-input-container">
+                    <input type="text" 
+                           id="input-${problem.id}" 
+                           class="answer-input" 
+                           placeholder="Enter your answer"
+                           data-problem-id="${problemId}">
+                    <button class="submit-answer" onclick="submitAnswer(${problem.id}, '${problemId}')">
+                        Check Answer
+                    </button>
+                </div>
+                <div id="feedback-${problem.id}" class="feedback"></div>
+                <button class="toggle-answer" 
+                        id="toggle-${problem.id}" 
+                        onclick="toggleAnswer(this, ${problem.id})"
+                        style="display: none;">
+                    Show Answer
+                </button>
+                <div class="answer" id="answer-${problem.id}">
+                    <div class="answer-text">Answer: ${problem.answer}</div>
+                </div>
+            `;
+            problemsContainer.appendChild(card);
+        });
+        
+        container.appendChild(section);
+    });
+    
+    // Re-render MathJax
+    if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise().catch((err) => console.log(err));
+    }
+    
+    // Add Enter key support
+    document.querySelectorAll('.answer-input').forEach(input => {
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const problemId = input.getAttribute('data-problem-id');
+                const problemNum = parseInt(input.id.split('-')[1]);
+                const problem = currentQuestions.find(q => q.id === problemNum);
+                if (problem) {
+                    submitAnswer(problemNum, problemId);
+                }
+            }
+        });
+    });
+}
+
+// Load user progress
+async function loadUserProgress() {
+    if (!currentUser) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/progress`, { credentials: 'include' });
+        const progress = await response.json();
+        
+        progress.forEach(p => {
+            const problemId = `problem-${p.questionId}`;
+            if (attempts[problemId]) {
+                attempts[problemId].correct = p.isCorrect;
+                attempts[problemId].wrong = p.attempts;
+                
+                // Update UI if completed
+                if (p.isCorrect || p.attempts >= 3) {
+                    const input = document.getElementById(`input-${p.questionId}`);
+                    if (input) {
+                        if (p.isCorrect) {
+                            input.disabled = true;
+                            input.style.backgroundColor = "#d4edda";
+                            const submitBtn = input.parentElement.querySelector('.submit-answer');
+                            if (submitBtn) {
+                                submitBtn.disabled = true;
+                                submitBtn.style.opacity = "0.6";
+                            }
+                        } else if (p.attempts >= 3) {
+                            const toggleBtn = document.getElementById(`toggle-${p.questionId}`);
+                            if (toggleBtn) toggleBtn.style.display = "inline-block";
+                        }
+                    }
+                }
+            }
+        });
+        
+        updateProgress();
+    } catch (error) {
+        console.error('Failed to load progress:', error);
+    }
+}
+
+// Normalize user input
 function normalizeInput(input) {
     if (!input) return "";
     return input
         .toLowerCase()
-        .replace(/\s+/g, "")  // Remove all spaces
-        .replace(/≥|>=/g, ">=")  // Normalize >=
-        .replace(/≤|<=/g, "<=")  // Normalize <=
+        .replace(/\s+/g, "")
+        .replace(/≥|>=/g, ">=")
+        .replace(/≤|<=/g, "<=")
         .replace(/infinitenumberofsolutions|infinitesolutions|infinitelymanysolutions/g, "infinitenumberofsolutions")
         .replace(/nosolution|nosolutions/g, "nosolution");
 }
@@ -99,10 +594,8 @@ function checkAnswer(userInput, correctAnswer) {
     const normalized = normalizeInput(userInput);
     const correct = normalizeInput(correctAnswer);
     
-    // Direct match
     if (normalized === correct) return true;
     
-    // For coordinate answers, try different formats
     if (correct.match(/^\(-?\d+,-?\d+\)$/)) {
         const coordMatch = normalized.match(/^\((-?\d+),(-?\d+)\)$/);
         if (coordMatch) {
@@ -115,13 +608,11 @@ function checkAnswer(userInput, correctAnswer) {
         }
     }
     
-    // For set notation like {-1}, try just the number
     if (correct.match(/^-?\d+$/)) {
         const numMatch = normalized.match(/^-?\d+$/);
         if (numMatch && numMatch[0] === correct) return true;
     }
     
-    // For fractions, try different formats
     if (correct.includes("/")) {
         const fracMatch = normalized.match(/^(-?\d+)\/(-?\d+)$/);
         if (fracMatch) {
@@ -141,124 +632,12 @@ function checkAnswer(userInput, correctAnswer) {
     return false;
 }
 
-// Render problems
-function renderProblems() {
-    Object.keys(problems).forEach(category => {
-        const container = document.getElementById(category);
-        if (!container) return;
-
-        problems[category].forEach(problem => {
-            const problemId = `problem-${problem.num}`;
-            attempts[problemId] = { wrong: 0, correct: false };
-            
-            const card = document.createElement('div');
-            card.className = 'problem-card';
-            card.innerHTML = `
-                <div class="problem-number">Problem ${problem.num}</div>
-                <div class="problem-text">${problem.question}</div>
-                <div class="answer-input-container">
-                    <input type="text" 
-                           id="input-${problem.num}" 
-                           class="answer-input" 
-                           placeholder="Enter your answer"
-                           data-problem-id="${problemId}">
-                    <button class="submit-answer" onclick="submitAnswer(${problem.num}, '${problemId}')">
-                        Check Answer
-                    </button>
-                </div>
-                <div id="feedback-${problem.num}" class="feedback"></div>
-                <button class="toggle-answer" 
-                        id="toggle-${problem.num}" 
-                        onclick="toggleAnswer(this, ${problem.num})"
-                        style="display: none;">
-                    Show Answer
-                </button>
-                <div class="answer" id="answer-${problem.num}">
-                    <div class="answer-text">Answer: ${problem.answer}</div>
-                </div>
-            `;
-            container.appendChild(card);
-        });
-    });
-
-    // Re-render MathJax after adding content
-    if (window.MathJax && window.MathJax.typesetPromise) {
-        window.MathJax.typesetPromise().catch((err) => console.log(err));
-    }
-    
-    // Add Enter key support for inputs
-    document.querySelectorAll('.answer-input').forEach(input => {
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                const problemId = input.getAttribute('data-problem-id');
-                const problemNum = parseInt(input.id.split('-')[1]);
-                const problem = findProblemByNum(problemNum);
-                if (problem) {
-                    submitAnswer(problemNum, problemId);
-                }
-            }
-        });
-    });
-}
-
-// Find problem by number
-function findProblemByNum(num) {
-    for (const category of Object.values(problems)) {
-        const problem = category.find(p => p.num === num);
-        if (problem) return problem;
-    }
-    return null;
-}
-
-// Update progress and score
-function updateProgress() {
-    const total = getTotalProblems();
-    let completed = 0;
-    let correct = 0;
-    
-    Object.keys(attempts).forEach(problemId => {
-        const attempt = attempts[problemId];
-        // Problem is completed if correct OR if 3 wrong attempts made
-        if (attempt.correct || attempt.wrong >= 3) {
-            completed++;
-            if (attempt.correct) {
-                correct++;
-            }
-        }
-    });
-    
-    const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
-    const scorePercent = total > 0 ? Math.round((correct / total) * 100) : 0;
-    
-    // Update progress bar
-    const progressFill = document.getElementById('progressFill');
-    if (progressFill) {
-        progressFill.style.width = `${progressPercent}%`;
-    }
-    
-    // Update text displays
-    const completedEl = document.getElementById('completed');
-    const totalProblemsEl = document.getElementById('totalProblems');
-    const progressPercentageEl = document.getElementById('progressPercentage');
-    const scoreEl = document.getElementById('score');
-    const totalEl = document.getElementById('total');
-    const scorePercentageEl = document.getElementById('scorePercentage');
-    
-    if (completedEl) completedEl.textContent = completed;
-    if (totalProblemsEl) totalProblemsEl.textContent = total;
-    if (progressPercentageEl) progressPercentageEl.textContent = `${progressPercent}%`;
-    if (scoreEl) scoreEl.textContent = correct;
-    if (totalEl) totalEl.textContent = total;
-    if (scorePercentageEl) scorePercentageEl.textContent = `${scorePercent}%`;
-}
-
 // Submit answer
-function submitAnswer(problemNum, problemId) {
+async function submitAnswer(problemNum, problemId) {
     const input = document.getElementById(`input-${problemNum}`);
     const feedback = document.getElementById(`feedback-${problemNum}`);
     const toggleBtn = document.getElementById(`toggle-${problemNum}`);
     
-    // Don't allow submission if already correct
     if (attempts[problemId] && attempts[problemId].correct) {
         return;
     }
@@ -271,7 +650,7 @@ function submitAnswer(problemNum, problemId) {
         return;
     }
     
-    const problem = findProblemByNum(problemNum);
+    const problem = currentQuestions.find(q => q.id === problemNum);
     if (!problem) return;
     
     const isCorrect = checkAnswer(userAnswer, problem.normalized);
@@ -289,7 +668,11 @@ function submitAnswer(problemNum, problemId) {
             submitBtn.style.cursor = "not-allowed";
         }
         toggleBtn.style.display = "none";
-        updateProgress();
+        
+        // Save progress to API
+        if (currentUser) {
+            await saveProgress(problemNum, true, attempts[problemId].wrong + 1);
+        }
     } else {
         attempts[problemId].wrong++;
         const remaining = 3 - attempts[problemId].wrong;
@@ -301,12 +684,38 @@ function submitAnswer(problemNum, problemId) {
             feedback.textContent = "✗ Incorrect. Show answer button unlocked.";
             feedback.className = "feedback feedback-error";
             toggleBtn.style.display = "inline-block";
-            updateProgress();
+            
+            // Save progress to API
+            if (currentUser) {
+                await saveProgress(problemNum, false, 3);
+            }
         }
+    }
+    
+    updateProgress();
+}
+
+// Save progress to API
+async function saveProgress(questionId, isCorrect, attempts) {
+    if (!currentUser) return;
+    
+    try {
+        await fetch(`${API_BASE}/progress`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                questionId,
+                isCorrect,
+                attempts
+            })
+        });
+    } catch (error) {
+        console.error('Failed to save progress:', error);
     }
 }
 
-// Toggle individual answer
+// Toggle answer
 function toggleAnswer(button, problemNum) {
     const answer = document.getElementById(`answer-${problemNum}`);
     const isShowing = answer.classList.contains('show');
@@ -318,8 +727,7 @@ function toggleAnswer(button, problemNum) {
         answer.classList.add('show');
         button.textContent = 'Hide Answer';
     }
-
-    // Re-render MathJax for the answer
+    
     if (window.MathJax && window.MathJax.typesetPromise) {
         window.MathJax.typesetPromise([answer]).catch((err) => console.log(err));
     }
@@ -355,16 +763,45 @@ function hideAllAnswers() {
     });
 }
 
-// Event listeners
-document.addEventListener('DOMContentLoaded', () => {
-    renderProblems();
-    updateProgress(); // Initialize progress display
+// Update progress
+function updateProgress() {
+    const total = currentQuestions.length;
+    let completed = 0;
+    let correct = 0;
     
-    document.getElementById('toggleAll').addEventListener('click', showAllAnswers);
-    document.getElementById('hideAll').addEventListener('click', hideAllAnswers);
-});
+    Object.keys(attempts).forEach(problemId => {
+        const attempt = attempts[problemId];
+        if (attempt.correct || attempt.wrong >= 3) {
+            completed++;
+            if (attempt.correct) {
+                correct++;
+            }
+        }
+    });
+    
+    const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const scorePercent = total > 0 ? Math.round((correct / total) * 100) : 0;
+    
+    const progressFill = document.getElementById('progressFill');
+    if (progressFill) {
+        progressFill.style.width = `${progressPercent}%`;
+    }
+    
+    const completedEl = document.getElementById('completed');
+    const totalProblemsEl = document.getElementById('totalProblems');
+    const progressPercentageEl = document.getElementById('progressPercentage');
+    const scoreEl = document.getElementById('score');
+    const totalEl = document.getElementById('total');
+    const scorePercentageEl = document.getElementById('scorePercentage');
+    
+    if (completedEl) completedEl.textContent = completed;
+    if (totalProblemsEl) totalProblemsEl.textContent = total;
+    if (progressPercentageEl) progressPercentageEl.textContent = `${progressPercent}%`;
+    if (scoreEl) scoreEl.textContent = correct;
+    if (totalEl) totalEl.textContent = total;
+    if (scorePercentageEl) scorePercentageEl.textContent = `${scorePercent}%`;
+}
 
-// Make functions available globally
-window.toggleAnswer = toggleAnswer;
+// Make functions globally available
 window.submitAnswer = submitAnswer;
-
+window.toggleAnswer = toggleAnswer;

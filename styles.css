@@ -39,6 +39,221 @@ header h1 {
     opacity: 0.9;
 }
 
+.auth-section {
+    margin-top: 20px;
+}
+
+#authButtonContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.btn-auth {
+    background: white;
+    color: #667eea;
+    border: 2px solid white;
+    padding: 8px 16px;
+    font-size: 0.9em;
+}
+
+.btn-auth:hover {
+    background: rgba(255, 255, 255, 0.9);
+    transform: translateY(-1px);
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.user-info span {
+    font-weight: 600;
+    color: white;
+}
+
+.btn-logout {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid white;
+    padding: 8px 16px;
+    font-size: 0.9em;
+}
+
+.btn-logout:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+.selection-screen {
+    padding: 40px;
+    text-align: center;
+}
+
+.selection-screen h2 {
+    color: #667eea;
+    font-size: 2em;
+    margin-bottom: 10px;
+}
+
+.back-button-container {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.course-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+    margin-bottom: 30px;
+}
+
+.course-tag {
+    padding: 15px 30px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: 2px solid #667eea;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 1.1em;
+    font-weight: 600;
+    color: white;
+    min-width: 200px;
+}
+
+.course-tag:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(102, 126, 234, 0.3);
+    background: linear-gradient(135deg, #5568d3 0%, #6a3d8f 100%);
+}
+
+.selection-subtitle {
+    color: #666;
+    margin-bottom: 30px;
+    font-size: 1.1em;
+}
+
+.category-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+    margin-bottom: 30px;
+}
+
+.category-tag {
+    padding: 12px 24px;
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 1em;
+    font-weight: 600;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.category-tag:hover {
+    border-color: #667eea;
+    background: #f0f4ff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.2);
+}
+
+.category-tag.selected {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.random-tag {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: #667eea;
+}
+
+.random-tag:hover {
+    background: linear-gradient(135deg, #5568d3 0%, #6a3d8f 100%);
+}
+
+.random-tag.selected {
+    background: linear-gradient(135deg, #5568d3 0%, #6a3d8f 100%);
+}
+
+.tag-icon {
+    font-size: 1.2em;
+}
+
+.random-option {
+    margin: 20px 0 30px;
+}
+
+.question-count-selector {
+    margin: 30px 0;
+}
+
+.question-count-selector label {
+    display: block;
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 15px;
+}
+
+.count-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.count-btn {
+    padding: 10px 20px;
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: 600;
+    color: #333;
+    transition: all 0.3s ease;
+    min-width: 60px;
+}
+
+.count-btn:hover {
+    border-color: #667eea;
+    background: #f0f4ff;
+}
+
+.count-btn.active {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.btn-large {
+    padding: 15px 40px;
+    font-size: 1.2em;
+    margin-top: 20px;
+}
+
+.btn-large:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.main-content {
+    display: block;
+}
+
 .controls {
     padding: 20px 40px;
     background: #f8f9fa;
