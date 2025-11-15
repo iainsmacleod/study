@@ -44,7 +44,26 @@ function initializeApp() {
     }
     
     setupEventListeners();
+    
+    // Check if we're returning from OAuth (check URL params)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('auth') || window.location.hash.includes('auth')) {
+        console.log('Detected OAuth redirect, checking auth status...');
+        // Clear the URL params
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    
+    // Check auth status immediately and also after a short delay (for OAuth redirects)
     checkAuth();
+    setTimeout(() => {
+        console.log('Delayed auth check (500ms)...');
+        checkAuth();
+    }, 500);
+    setTimeout(() => {
+        console.log('Delayed auth check (1s)...');
+        checkAuth();
+    }, 1000);
+    
     loadCourses();
 }
 
@@ -56,6 +75,16 @@ if (document.readyState === 'loading') {
 } else {
     initializeApp();
 }
+
+// Check auth status when page becomes visible (handles tab switching after OAuth)
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        checkAuth();
+    }
+});
+
+// Check auth status on focus (handles window focus after OAuth)
+window.addEventListener('focus', checkAuth);
 
 // Check authentication status
 async function checkAuth() {
@@ -88,7 +117,20 @@ async function checkAuth() {
         if (data.authenticated && data.user) {
             console.log('User is authenticated:', data.user);
             currentUser = data.user;
+            console.log('Calling showUserInfo with user:', data.user);
             showUserInfo(data.user);
+            console.log('showUserInfo called, verifying button state...');
+            // Verify the button actually changed after a brief delay
+            setTimeout(() => {
+                const logoutBtn = document.getElementById('logoutBtn');
+                const statsBtn = document.getElementById('statsBtn');
+                const googleLogin = document.getElementById('googleLogin');
+                console.log('Button states after showUserInfo:');
+                console.log('  googleLogin display:', googleLogin?.style.display);
+                console.log('  logoutBtn display:', logoutBtn?.style.display);
+                console.log('  statsBtn display:', statsBtn?.style.display);
+            }, 200);
+            return; // Exit early on success
         } else {
             console.log('User is not authenticated');
             currentUser = null;
@@ -124,6 +166,7 @@ function showLoginButtons() {
     try {
         const googleLogin = document.getElementById('googleLogin');
         const logoutBtn = document.getElementById('logoutBtn');
+        const statsBtn = document.getElementById('statsBtn');
         const userInfo = document.getElementById('userInfo');
         
         // Double-check elements exist and have style property
@@ -142,6 +185,9 @@ function showLoginButtons() {
         
         googleLogin.style.display = 'inline-block';
         logoutBtn.style.display = 'none';
+        if (statsBtn && statsBtn.style) {
+            statsBtn.style.display = 'none';
+        }
         userInfo.style.display = 'none';
     } catch (error) {
         console.error('Error in showLoginButtons:', error);
@@ -159,8 +205,17 @@ function showUserInfo(user) {
     try {
         const googleLogin = document.getElementById('googleLogin');
         const logoutBtn = document.getElementById('logoutBtn');
+        const statsBtn = document.getElementById('statsBtn');
         const userInfo = document.getElementById('userInfo');
         const userEmail = document.getElementById('userEmail');
+        
+        console.log('showUserInfo: Elements found:', {
+            googleLogin: !!googleLogin,
+            logoutBtn: !!logoutBtn,
+            statsBtn: !!statsBtn,
+            userInfo: !!userInfo,
+            userEmail: !!userEmail
+        });
         
         // Double-check elements exist and have style property
         if (!googleLogin || !googleLogin.style) {
@@ -180,10 +235,18 @@ function showUserInfo(user) {
             return;
         }
         
+        console.log('showUserInfo: Setting button displays...');
         googleLogin.style.display = 'none';
         logoutBtn.style.display = 'inline-block';
+        if (statsBtn && statsBtn.style) {
+            statsBtn.style.display = 'inline-block';
+            console.log('showUserInfo: Stats button shown');
+        } else {
+            console.warn('showUserInfo: statsBtn not found or not ready');
+        }
         userInfo.style.display = 'flex';
         userEmail.textContent = user?.email || 'User';
+        console.log('showUserInfo: All buttons updated');
     } catch (error) {
         console.error('Error in showUserInfo:', error);
     }

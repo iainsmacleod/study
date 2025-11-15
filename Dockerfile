@@ -70,7 +70,18 @@ RUN echo '#!/bin/sh' > /start.sh && \
     echo 'set -e' >> /start.sh && \
     echo 'echo "Starting Node.js server..."' >> /start.sh && \
     echo 'node /app/server.js &' >> /start.sh && \
-    echo 'sleep 3' >> /start.sh && \
+    echo 'NODE_PID=$!' >> /start.sh && \
+    echo 'echo "Waiting for Node.js to be ready..."' >> /start.sh && \
+    echo 'for i in 1 2 3 4 5 6 7 8 9 10; do' >> /start.sh && \
+    echo '  if wget --no-verbose --tries=1 --spider http://localhost:3000/health 2>/dev/null; then' >> /start.sh && \
+    echo '    echo "Node.js is ready"' >> /start.sh && \
+    echo '    break' >> /start.sh && \
+    echo '  fi' >> /start.sh && \
+    echo '  sleep 1' >> /start.sh && \
+    echo 'done' >> /start.sh && \
+    echo 'if ! wget --no-verbose --tries=1 --spider http://localhost:3000/health 2>/dev/null; then' >> /start.sh && \
+    echo '  echo "Warning: Node.js health check failed, but continuing..."' >> /start.sh && \
+    echo 'fi' >> /start.sh && \
     echo 'echo "Starting nginx..."' >> /start.sh && \
     echo 'nginx -g "daemon off;"' >> /start.sh && \
     chmod +x /start.sh

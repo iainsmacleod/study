@@ -8,14 +8,14 @@ services:
       - "8585:8080"
     restart: unless-stopped
     environment:
-  - NODE_ENV=production
-  - PORT=3000
-  - FRONTEND_URL=https://study.macleod.systems
-  - DB_PATH=/app/data/study.db
-  - SESSION_SECRET=${SESSION_SECRET:-change-me-in-production}
-  - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
-  - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
-  - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL:-https://study.macleod.systems/api/auth/google/callback}
+      - NODE_ENV=production
+      - PORT=3000
+      - FRONTEND_URL=https://study.macleod.systems
+      - DB_PATH=/app/data/study.db
+      - SESSION_SECRET=${SESSION_SECRET:-change-me-in-production}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL:-https://study.macleod.systems/api/auth/google/callback}
     volumes:
       - study-data:/app/data
     security_opt:
