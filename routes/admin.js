@@ -279,5 +279,188 @@ router.delete('/users/:id', isAdmin, (req, res, next) => {
     });
 });
 
+// GET /api/admin/reports - List all reports (admin only)
+router.get('/reports', isAdmin, (req, res, next) => {
+    const db = getDB();
+    
+    const query = `
+        SELECT 
+            qr.id,
+            qr.question_id,
+            qr.user_id,
+            qr.issue_type,
+            qr.description,
+            qr.reported_at,
+            qr.acknowledged_at,
+            qr.acknowledged_by,
+            q.question_text,
+            q.answer,
+            u.email as reporter_email,
+            ack.email as acknowledged_by_email
+        FROM question_reports qr
+        JOIN questions q ON qr.question_id = q.id
+        LEFT JOIN users u ON qr.user_id = u.id
+        LEFT JOIN users ack ON qr.acknowledged_by = ack.id
+        WHERE qr.acknowledged_at IS NULL
+        ORDER BY qr.reported_at DESC
+    `;
+    
+    db.all(query, (err, rows) => {
+        db.close();
+        
+        if (err) {
+            return next(err);
+        }
+        
+        res.json(rows);
+    });
+});
+
+// DELETE /api/admin/reports/:id - Acknowledge/Delete a report (admin only)
+router.delete('/reports/:id', isAdmin, (req, res, next) => {
+    const db = getDB();
+    const reportId = parseInt(req.params.id);
+    const adminUserId = req.user ? req.user.id : null;
+    
+    db.run(
+        'UPDATE question_reports SET acknowledged_at = CURRENT_TIMESTAMP, acknowledged_by = ? WHERE id = ?',
+        [adminUserId, reportId],
+        function(err) {
+            db.close();
+            
+            if (err) {
+                return next(err);
+            }
+            
+            if (this.changes === 0) {
+                return res.status(404).json({ error: 'Report not found' });
+            }
+            
+            res.json({ success: true });
+        }
+    );
+});
+
+// GET /api/admin/questions/:id - Get question for editing (admin only)
+router.get('/questions/:id', isAdmin, (req, res, next) => {
+    const db = getDB();
+    const questionId = parseInt(req.params.id);
+    
+    // Get question details
+    const questionQuery = `
+        SELECT 
+            q.id,
+            q.question_text,
+            q.answer,
+            q.normalized_answer,
+            q.category_id,
+            q.course_id,
+            q.question_number
+        FROM questions q
+        WHERE q.id = ?
+    `;
+    
+    db.get(questionQuery, [questionId], (err, question) => {
+        if (err) {
+            db.close();
+            return next(err);
+        }
+        
+        if (!question) {
+            db.close();
+            return res.status(404).json({ error: 'Question not found' });
+        }
+        
+        // Get alternative answers
+        db.all(
+            'SELECT id, normalized_answer FROM question_alternative_answers WHERE question_id = ?',
+            [questionId],
+            (altErr, alternatives) => {
+                db.close();
+                
+                if (altErr) {
+                    return next(altErr);
+                }
+                
+                res.json({
+                    ...question,
+                    alternativeAnswers: alternatives
+                });
+            }
+        );
+    });
+});
+
+// PUT /api/admin/questions/:id - Update question (admin only)
+router.put('/questions/:id', isAdmin, (req, res, next) => {
+    const db = getDB();
+    const questionId = parseInt(req.params.id);
+    const { questionText, answer, normalizedAnswer, categoryId, courseId, alternativeAnswers } = req.body;
+    
+    // Validate required fields
+    if (!questionText || !answer || !normalizedAnswer || !categoryId || !courseId) {
+        db.close();
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    // Update question
+    db.run(
+        'UPDATE questions SET question_text = ?, answer = ?, normalized_answer = ?, category_id = ?, course_id = ? WHERE id = ?',
+        [questionText, answer, normalizedAnswer, categoryId, courseId, questionId],
+        function(err) {
+            if (err) {
+                db.close();
+                return next(err);
+            }
+            
+            if (this.changes === 0) {
+                db.close();
+                return res.status(404).json({ error: 'Question not found' });
+            }
+            
+            // Delete existing alternative answers
+            db.run('DELETE FROM question_alternative_answers WHERE question_id = ?', [questionId], (delErr) => {
+                if (delErr) {
+                    db.close();
+                    return next(delErr);
+                }
+                
+                // Insert new alternative answers if provided
+                if (alternativeAnswers && Array.isArray(alternativeAnswers) && alternativeAnswers.length > 0) {
+                    // Insert alternative answers sequentially
+                    let index = 0;
+                    
+                    function insertNext() {
+                        if (index >= alternativeAnswers.length) {
+                            db.close();
+                            return res.json({ success: true });
+                        }
+                        
+                        const altAnswer = alternativeAnswers[index];
+                        db.run(
+                            'INSERT INTO question_alternative_answers (question_id, normalized_answer) VALUES (?, ?)',
+                            [questionId, altAnswer.normalizedAnswer],
+                            (insertErr) => {
+                                if (insertErr) {
+                                    db.close();
+                                    return next(insertErr);
+                                }
+                                
+                                index++;
+                                insertNext();
+                            }
+                        );
+                    }
+                    
+                    insertNext();
+                } else {
+                    db.close();
+                    res.json({ success: true });
+                }
+            });
+        }
+    );
+});
+
 module.exports = router;
 

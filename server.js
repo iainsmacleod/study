@@ -245,6 +245,7 @@ app.use('/api/categories', require('./routes/categories'));
 app.use('/api/questions', require('./routes/questions'));
 app.use('/api/progress', require('./routes/progress'));
 app.use('/api/stats', require('./routes/stats'));
+app.use('/api/reports', require('./routes/reports'));
 app.use('/api/admin', require('./routes/admin'));
 
 // Health check

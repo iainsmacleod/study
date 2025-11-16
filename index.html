@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Math Study Guide</title>
-    <link rel="stylesheet" href="styles.css?v=2">
+    <link rel="stylesheet" href="styles.css?v=4">
     <!-- https://4.files.edl.io/9409/06/12/25/175450-e553e8d3-0176-4d6e-83ab-d19fb87e2427.pdf -->
 </head>
 <body>
@@ -127,8 +127,79 @@
             </div>
         </div>
     </div>
+    
+    <!-- Report Modal (overlay) -->
+    <div id="reportModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content report-modal">
+            <div class="modal-header">
+                <h3>Report an Issue</h3>
+                <button class="btn btn-secondary btn-small" id="closeReportBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="reportForm">
+                    <div style="margin-bottom: 20px;">
+                        <label for="reportIssueType" style="display: block; margin-bottom: 8px; font-weight: 600;">Issue Type:</label>
+                        <select id="reportIssueType" class="answer-input" required>
+                            <option value="">Select an issue type...</option>
+                            <option value="wrong_answer">Wrong Answer</option>
+                            <option value="answer_should_be_accepted">Answer Should Be Accepted</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label for="reportDescription" style="display: block; margin-bottom: 8px; font-weight: 600;">Description:</label>
+                        <textarea id="reportDescription" class="answer-input" rows="5" placeholder="Please describe the issue..." required></textarea>
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button type="button" class="btn btn-secondary" id="cancelReportBtn">Cancel</button>
+                        <button type="submit" class="btn btn-warning">Submit Report</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Question Editor Modal (overlay) -->
+    <div id="questionEditorModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content question-editor-modal">
+            <div class="modal-header">
+                <h3>Edit Question</h3>
+                <button class="btn btn-secondary btn-small" id="closeQuestionEditorBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="questionEditorForm">
+                    <input type="hidden" id="editorQuestionId">
+                    <div style="margin-bottom: 20px;">
+                        <label for="editorQuestionText" style="display: block; margin-bottom: 8px; font-weight: 600;">Question Text:</label>
+                        <textarea id="editorQuestionText" class="answer-input" rows="4" required></textarea>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label for="editorAnswer" style="display: block; margin-bottom: 8px; font-weight: 600;">Answer:</label>
+                        <input type="text" id="editorAnswer" class="answer-input" required>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label for="editorCategory" style="display: block; margin-bottom: 8px; font-weight: 600;">Category:</label>
+                        <select id="editorCategory" class="answer-input" required></select>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label for="editorCourse" style="display: block; margin-bottom: 8px; font-weight: 600;">Course:</label>
+                        <select id="editorCourse" class="answer-input" required></select>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">Alternative Answers:</label>
+                        <div id="alternativeAnswersList"></div>
+                        <button type="button" class="btn btn-secondary" id="addAlternativeBtn" style="margin-top: 10px;">Add Alternative Answer</button>
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button type="button" class="btn btn-secondary" id="cancelQuestionEditorBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-    <script src="script.js?v=14"></script>
+    <script src="script.js?v=15"></script>
 </body>
 </html>
 

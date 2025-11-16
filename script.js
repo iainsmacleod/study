@@ -530,6 +530,47 @@ function setupEventListeners() {
         }
     });
     
+    // Report modal event listeners
+    document.getElementById('closeReportBtn')?.addEventListener('click', closeReportModal);
+    document.getElementById('cancelReportBtn')?.addEventListener('click', closeReportModal);
+    document.getElementById('reportForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!currentReportQuestionId) return;
+        
+        const issueType = document.getElementById('reportIssueType').value;
+        const description = document.getElementById('reportDescription').value;
+        
+        if (!issueType || !description) {
+            alert('Please fill in all fields');
+            return;
+        }
+        
+        await submitReport(currentReportQuestionId, issueType, description);
+    });
+    
+    // Close report modal when clicking outside
+    document.getElementById('reportModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'reportModal') {
+            closeReportModal();
+        }
+    });
+    
+    // Question editor modal event listeners
+    document.getElementById('closeQuestionEditorBtn')?.addEventListener('click', closeQuestionEditor);
+    document.getElementById('cancelQuestionEditorBtn')?.addEventListener('click', closeQuestionEditor);
+    document.getElementById('addAlternativeBtn')?.addEventListener('click', () => addAlternativeAnswerField());
+    document.getElementById('questionEditorForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await saveQuestion();
+    });
+    
+    // Close question editor modal when clicking outside
+    document.getElementById('questionEditorModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'questionEditorModal') {
+            closeQuestionEditor();
+        }
+    });
+    
     // Toggle show/hide all answers
     document.getElementById('toggleAll')?.addEventListener('click', toggleAllAnswers);
     
@@ -814,6 +855,9 @@ function renderQuestions() {
                 <div class="answer" id="answer-${problem.id}">
                     <div class="answer-text">Answer: ${problem.answer}</div>
                 </div>
+                <button class="report-icon" onclick="showReportModal(${problem.id})" title="Report an issue with this question">
+                    ⚠️
+                </button>
             `;
             problemsContainer.appendChild(card);
         });
@@ -1207,7 +1251,7 @@ async function handleAdminClick() {
         const status = await statusResponse.json();
         
         if (status.isAdmin) {
-            loadAdminPanel();
+            loadAdminPanel('users');
         } else {
             const password = prompt('Enter admin password:');
             if (password) {
@@ -1223,7 +1267,7 @@ async function handleAdminClick() {
                     // Wait longer for session to be fully saved and persisted before loading admin panel
                     // This ensures the session recovery middleware can find the session
                     await new Promise(resolve => setTimeout(resolve, 500));
-                    loadAdminPanel();
+                    loadAdminPanel('users');
                 } else {
                     alert('Invalid password');
                 }
@@ -1235,61 +1279,6 @@ async function handleAdminClick() {
     }
 }
 
-// Load admin panel
-async function loadAdminPanel() {
-    const adminPanel = document.getElementById('adminPanel');
-    const adminContent = document.getElementById('adminContent');
-    if (!adminPanel || !adminContent) return;
-    
-    try {
-        const response = await fetch(`${API_BASE}/admin/users`, { credentials: 'include' });
-        if (!response.ok) {
-            throw new Error('Failed to load users');
-        }
-        const users = await response.json();
-        renderUserList(users);
-        adminPanel.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-    } catch (error) {
-        console.error('Failed to load admin panel:', error);
-        alert('Failed to load admin panel');
-    }
-}
-
-// Render user list in admin panel
-function renderUserList(users) {
-    const adminContent = document.getElementById('adminContent');
-    if (!adminContent) return;
-    
-    if (users.length === 0) {
-        adminContent.innerHTML = '<p>No users found.</p>';
-        return;
-    }
-    
-    let html = '<div class="admin-container">';
-    html += '<table class="admin-table">';
-    html += '<thead><tr><th>Email</th><th>Provider</th><th>Created</th><th>Actions</th></tr></thead>';
-    html += '<tbody>';
-    
-    users.forEach(user => {
-        const createdDate = new Date(user.created_at).toLocaleDateString();
-        html += `<tr>
-            <td>${user.email}</td>
-            <td>${user.provider}</td>
-            <td>${createdDate}</td>
-            <td>
-                <button class="btn btn-small btn-stats" onclick="viewUserStats(${user.id})">View Stats</button>
-                <button class="btn btn-small btn-warning" onclick="resetUserProgress(${user.id})">Reset Progress</button>
-                <button class="btn btn-small btn-danger" onclick="deleteUser(${user.id})">Delete</button>
-            </td>
-        </tr>`;
-    });
-    
-    html += '</tbody></table>';
-    html += '</div>';
-    
-    adminContent.innerHTML = html;
-}
 
 // View user stats (admin)
 async function viewUserStats(userId) {
@@ -1325,7 +1314,7 @@ async function viewUserStats(userId) {
         
         const adminContent = document.getElementById('adminContent');
         if (adminContent) {
-            adminContent.innerHTML = html + '<button class="btn" onclick="loadAdminPanel()">Back to User List</button>';
+            adminContent.innerHTML = html + '<button class="btn" onclick="loadAdminPanel(\'users\')">Back to User List</button>';
         }
     } catch (error) {
         console.error('Failed to load user stats:', error);
@@ -1350,7 +1339,7 @@ async function resetUserProgress(userId) {
         }
         
         alert('User progress reset successfully');
-        loadAdminPanel();
+        loadAdminPanel('users');
     } catch (error) {
         console.error('Failed to reset user progress:', error);
         alert('Failed to reset user progress');
@@ -1374,10 +1363,396 @@ async function deleteUser(userId) {
         }
         
         alert('User deleted successfully');
-        loadAdminPanel();
+        loadAdminPanel('users');
     } catch (error) {
         console.error('Failed to delete user:', error);
         alert('Failed to delete user');
+    }
+}
+
+// Report Modal Functions
+let currentReportQuestionId = null;
+
+function showReportModal(questionId) {
+    currentReportQuestionId = questionId;
+    const reportModal = document.getElementById('reportModal');
+    if (reportModal) {
+        reportModal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        // Reset form
+        document.getElementById('reportForm').reset();
+    }
+}
+
+function closeReportModal() {
+    const reportModal = document.getElementById('reportModal');
+    if (reportModal) {
+        reportModal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+        currentReportQuestionId = null;
+    }
+}
+
+async function submitReport(questionId, issueType, description) {
+    try {
+        const response = await fetch(`${API_BASE}/reports`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                questionId,
+                issueType,
+                description
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to submit report');
+        }
+        
+        const result = await response.json();
+        alert('Report submitted successfully. Thank you for your feedback!');
+        closeReportModal();
+        return result;
+    } catch (error) {
+        console.error('Failed to submit report:', error);
+        alert('Failed to submit report. Please try again.');
+        throw error;
+    }
+}
+
+// Load admin panel with tabs
+async function loadAdminPanel(activeTab = 'users') {
+    const adminPanel = document.getElementById('adminPanel');
+    const adminContent = document.getElementById('adminContent');
+    if (!adminPanel || !adminContent) return;
+    
+    // Create tab navigation
+    let html = '<div class="admin-tabs">';
+    html += `<button class="admin-tab ${activeTab === 'users' ? 'active' : ''}" onclick="loadAdminPanel('users')">Users</button>`;
+    html += `<button class="admin-tab ${activeTab === 'issues' ? 'active' : ''}" onclick="loadAdminPanel('issues')">Issues</button>`;
+    html += '</div>';
+    html += '<div id="adminTabContent"></div>';
+    
+    adminContent.innerHTML = html;
+    adminPanel.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    
+    if (activeTab === 'users') {
+        await loadUsersTab();
+    } else if (activeTab === 'issues') {
+        await loadIssuesTab();
+    }
+}
+
+async function loadUsersTab() {
+    const tabContent = document.getElementById('adminTabContent');
+    if (!tabContent) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/admin/users`, { credentials: 'include' });
+        if (!response.ok) {
+            throw new Error('Failed to load users');
+        }
+        const users = await response.json();
+        renderUserList(users);
+    } catch (error) {
+        console.error('Failed to load users:', error);
+        tabContent.innerHTML = '<p>Failed to load users.</p>';
+    }
+}
+
+function renderUserList(users) {
+    const tabContent = document.getElementById('adminTabContent');
+    if (!tabContent) return;
+    
+    if (users.length === 0) {
+        tabContent.innerHTML = '<p>No users found.</p>';
+        return;
+    }
+    
+    let html = '<div class="admin-container">';
+    html += '<table class="admin-table">';
+    html += '<thead><tr><th>Email</th><th>Provider</th><th>Created</th><th>Actions</th></tr></thead>';
+    html += '<tbody>';
+    
+    users.forEach(user => {
+        const createdDate = new Date(user.created_at).toLocaleDateString();
+        html += `<tr>
+            <td>${user.email}</td>
+            <td>${user.provider}</td>
+            <td>${createdDate}</td>
+            <td>
+                <button class="btn btn-small btn-stats" onclick="viewUserStats(${user.id})">View Stats</button>
+                <button class="btn btn-small btn-warning" onclick="resetUserProgress(${user.id})">Reset Progress</button>
+                <button class="btn btn-small btn-danger" onclick="deleteUser(${user.id})">Delete</button>
+            </td>
+        </tr>`;
+    });
+    
+    html += '</tbody></table>';
+    html += '</div>';
+    
+    tabContent.innerHTML = html;
+}
+
+async function loadIssuesTab() {
+    const tabContent = document.getElementById('adminTabContent');
+    if (!tabContent) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/admin/reports`, { credentials: 'include' });
+        if (!response.ok) {
+            throw new Error('Failed to load reports');
+        }
+        const reports = await response.json();
+        renderReportsList(reports);
+    } catch (error) {
+        console.error('Failed to load reports:', error);
+        tabContent.innerHTML = '<p>Failed to load reports.</p>';
+    }
+}
+
+function renderReportsList(reports) {
+    const tabContent = document.getElementById('adminTabContent');
+    if (!tabContent) return;
+    
+    if (reports.length === 0) {
+        tabContent.innerHTML = '<p>No reports found.</p>';
+        return;
+    }
+    
+    let html = '<div class="admin-container">';
+    reports.forEach(report => {
+        const reportedDate = new Date(report.reported_at).toLocaleDateString();
+        const issueTypeLabels = {
+            'wrong_answer': 'Wrong Answer',
+            'answer_should_be_accepted': 'Answer Should Be Accepted',
+            'other': 'Other'
+        };
+        const questionPreview = report.question_text.length > 100 
+            ? report.question_text.substring(0, 100) + '...' 
+            : report.question_text;
+        
+        html += `<div class="report-item" style="border: 1px solid #e9ecef; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: white;">`;
+        html += `<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">`;
+        html += `<div><strong>Question ID:</strong> ${report.question_id}</div>`;
+        html += `<div><strong>Issue Type:</strong> ${issueTypeLabels[report.issue_type] || report.issue_type}</div>`;
+        html += `</div>`;
+        html += `<div style="margin-bottom: 10px;"><strong>Question:</strong> ${questionPreview}</div>`;
+        html += `<div style="margin-bottom: 10px;"><strong>Description:</strong> ${report.description}</div>`;
+        html += `<div style="margin-bottom: 10px; color: #666; font-size: 0.9em;">`;
+        html += `<strong>Reported by:</strong> ${report.reporter_email || 'Anonymous'} | `;
+        html += `<strong>Date:</strong> ${reportedDate}`;
+        html += `</div>`;
+        html += `<div style="display: flex; gap: 10px;">`;
+        html += `<button class="btn btn-small btn-primary" onclick="editQuestion(${report.question_id})">Edit Question</button>`;
+        html += `<button class="btn btn-small btn-warning" onclick="acknowledgeReport(${report.id})">Acknowledge</button>`;
+        html += `</div>`;
+        html += `</div>`;
+    });
+    html += '</div>';
+    
+    tabContent.innerHTML = html;
+}
+
+async function acknowledgeReport(reportId) {
+    if (!confirm('Are you sure you want to acknowledge this report? This will mark it as resolved.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/admin/reports/${reportId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to acknowledge report');
+        }
+        
+        alert('Report acknowledged successfully');
+        loadIssuesTab();
+    } catch (error) {
+        console.error('Failed to acknowledge report:', error);
+        alert('Failed to acknowledge report');
+    }
+}
+
+async function editQuestion(questionId) {
+    try {
+        const response = await fetch(`${API_BASE}/admin/questions/${questionId}`, {
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to load question');
+        }
+        
+        const question = await response.json();
+        showQuestionEditor(question);
+    } catch (error) {
+        console.error('Failed to load question:', error);
+        alert('Failed to load question for editing');
+    }
+}
+
+async function showQuestionEditor(question) {
+    const editorModal = document.getElementById('questionEditorModal');
+    if (!editorModal) return;
+    
+    // Set question ID
+    document.getElementById('editorQuestionId').value = question.id;
+    document.getElementById('editorQuestionText').value = question.question_text;
+    document.getElementById('editorAnswer').value = question.answer;
+    
+    // Load categories and courses
+    const categorySelect = document.getElementById('editorCategory');
+    const courseSelect = document.getElementById('editorCourse');
+    
+    // Load courses
+    const coursesResponse = await fetch(`${API_BASE}/courses`, { credentials: 'include' });
+    if (coursesResponse.ok) {
+        const courses = await coursesResponse.json();
+        const currentCourse = courses.find(c => c.id === question.course_id);
+        
+        // Populate course select
+        courseSelect.innerHTML = '';
+        courses.forEach(course => {
+            const option = document.createElement('option');
+            option.value = course.id;
+            option.textContent = course.name;
+            if (course.id === question.course_id) option.selected = true;
+            courseSelect.appendChild(option);
+        });
+        
+        // Load categories for the current course
+        if (currentCourse) {
+            const categoriesResponse = await fetch(`${API_BASE}/categories?course=${encodeURIComponent(currentCourse.name)}`, { credentials: 'include' });
+            if (categoriesResponse.ok) {
+                const cats = await categoriesResponse.json();
+                categorySelect.innerHTML = '';
+                cats.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat.id;
+                    option.textContent = cat.description || cat.name;
+                    if (cat.id === question.category_id) option.selected = true;
+                    categorySelect.appendChild(option);
+                });
+            }
+        }
+        
+        // Update categories when course changes
+        courseSelect.addEventListener('change', async (e) => {
+            const selectedCourseId = parseInt(e.target.value);
+            const selectedCourse = courses.find(c => c.id === selectedCourseId);
+            
+            if (selectedCourse) {
+                const categoriesResponse = await fetch(`${API_BASE}/categories?course=${encodeURIComponent(selectedCourse.name)}`, { credentials: 'include' });
+                if (categoriesResponse.ok) {
+                    const cats = await categoriesResponse.json();
+                    categorySelect.innerHTML = '';
+                    cats.forEach(cat => {
+                        const option = document.createElement('option');
+                        option.value = cat.id;
+                        option.textContent = cat.description || cat.name;
+                        categorySelect.appendChild(option);
+                    });
+                }
+            }
+        });
+    }
+    
+    // Load alternative answers
+    const altAnswersList = document.getElementById('alternativeAnswersList');
+    altAnswersList.innerHTML = '';
+    if (question.alternativeAnswers && question.alternativeAnswers.length > 0) {
+        question.alternativeAnswers.forEach((alt, index) => {
+            addAlternativeAnswerField(alt.normalized_answer);
+        });
+    }
+    
+    editorModal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeQuestionEditor() {
+    const editorModal = document.getElementById('questionEditorModal');
+    if (editorModal) {
+        editorModal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+}
+
+function addAlternativeAnswerField(value = '') {
+    const list = document.getElementById('alternativeAnswersList');
+    const div = document.createElement('div');
+    div.style.display = 'flex';
+    div.style.gap = '10px';
+    div.style.marginBottom = '10px';
+    div.innerHTML = `
+        <input type="text" class="answer-input" value="${value}" placeholder="Alternative answer" style="flex: 1;">
+        <button type="button" class="btn btn-small btn-danger" onclick="this.parentElement.remove()">Remove</button>
+    `;
+    list.appendChild(div);
+}
+
+async function saveQuestion() {
+    const questionId = document.getElementById('editorQuestionId').value;
+    const questionText = document.getElementById('editorQuestionText').value;
+    const answer = document.getElementById('editorAnswer').value;
+    const categoryId = document.getElementById('editorCategory').value;
+    const courseId = document.getElementById('editorCourse').value;
+    
+    // Get alternative answers and normalize them
+    const altInputs = document.querySelectorAll('#alternativeAnswersList input');
+    const alternativeAnswers = Array.from(altInputs)
+        .map(input => input.value.trim())
+        .filter(val => val.length > 0)
+        .map(val => {
+            // Normalize the alternative answer (same logic as normalizeInput function)
+            let normalized = val.toLowerCase().trim();
+            if (normalized === 'none') normalized = 'nosolution';
+            if (normalized === 'infinite') normalized = 'infinitenumberofsolutions';
+            normalized = normalized.replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+            return { normalizedAnswer: normalized };
+        });
+    
+    // Normalize the main answer (same logic as backend)
+    const normalizedAnswer = answer.toLowerCase().trim()
+        .replace(/\s+/g, '')
+        .replace(/[^a-z0-9]/g, '');
+    
+    try {
+        const response = await fetch(`${API_BASE}/admin/questions/${questionId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                questionText,
+                answer,
+                normalizedAnswer,
+                categoryId: parseInt(categoryId),
+                courseId: parseInt(courseId),
+                alternativeAnswers
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to save question');
+        }
+        
+        alert('Question updated successfully!');
+        closeQuestionEditor();
+        // Reload issues tab to refresh data
+        loadIssuesTab();
+    } catch (error) {
+        console.error('Failed to save question:', error);
+        alert('Failed to save question. Please try again.');
     }
 }
 
@@ -1388,3 +1763,7 @@ window.viewUserStats = viewUserStats;
 window.resetUserProgress = resetUserProgress;
 window.deleteUser = deleteUser;
 window.loadAdminPanel = loadAdminPanel;
+window.showReportModal = showReportModal;
+window.editQuestion = editQuestion;
+window.acknowledgeReport = acknowledgeReport;
+window.addAlternativeAnswerField = addAlternativeAnswerField;

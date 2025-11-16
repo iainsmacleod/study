@@ -82,30 +82,52 @@ function initSchema(db) {
                 FOREIGN KEY (user_id) REFERENCES users(id),
                 FOREIGN KEY (question_id) REFERENCES questions(id)
             )`,
+            `CREATE TABLE IF NOT EXISTS question_reports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                question_id INTEGER NOT NULL,
+                user_id INTEGER,
+                issue_type TEXT NOT NULL,
+                description TEXT NOT NULL,
+                reported_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                acknowledged_at DATETIME,
+                acknowledged_by INTEGER,
+                FOREIGN KEY (question_id) REFERENCES questions(id),
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (acknowledged_by) REFERENCES users(id)
+            )`,
             `CREATE INDEX IF NOT EXISTS idx_questions_course ON questions(course_id)`,
             `CREATE INDEX IF NOT EXISTS idx_questions_category ON questions(category_id)`,
             `CREATE INDEX IF NOT EXISTS idx_user_progress_user ON user_progress(user_id)`,
             `CREATE INDEX IF NOT EXISTS idx_user_progress_question ON user_progress(question_id)`,
             `CREATE INDEX IF NOT EXISTS idx_user_progress_history_user ON user_progress_history(user_id)`,
             `CREATE INDEX IF NOT EXISTS idx_user_progress_history_question ON user_progress_history(question_id)`,
-            `CREATE INDEX IF NOT EXISTS idx_user_progress_history_answered_at ON user_progress_history(answered_at)`
+            `CREATE INDEX IF NOT EXISTS idx_user_progress_history_answered_at ON user_progress_history(answered_at)`,
+            `CREATE INDEX IF NOT EXISTS idx_question_reports_question ON question_reports(question_id)`,
+            `CREATE INDEX IF NOT EXISTS idx_question_reports_user ON question_reports(user_id)`,
+            `CREATE INDEX IF NOT EXISTS idx_question_reports_reported_at ON question_reports(reported_at)`
         ];
 
-        let completed = 0;
-        const total = operations.length;
-
-        operations.forEach((sql) => {
+        // Execute operations sequentially to ensure tables are created before indexes
+        let index = 0;
+        
+        function executeNext() {
+            if (index >= operations.length) {
+                resolve();
+                return;
+            }
+            
+            const sql = operations[index];
             db.run(sql, (err) => {
                 if (err) {
                     reject(err);
                     return;
                 }
-                completed++;
-                if (completed === total) {
-                    resolve();
-                }
+                index++;
+                executeNext();
             });
-        });
+        }
+        
+        executeNext();
     });
 }
 
