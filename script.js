@@ -261,7 +261,12 @@ function renderCategoryTags() {
     randomTag.className = 'category-tag';
     randomTag.id = 'randomTag';
     randomTag.innerHTML = '<span class="tag-icon">🎲</span> Random (All Categories)';
-    randomTag.addEventListener('click', toggleRandom);
+    randomTag.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Random button clicked');
+        toggleRandom();
+    });
     container.appendChild(randomTag);
     
     // Then add all categories
@@ -300,21 +305,30 @@ function toggleCategory(categoryName, element) {
 function toggleRandom() {
     const randomTag = document.getElementById('randomTag');
     
+    if (!randomTag) {
+        console.error('Random tag not found');
+        return;
+    }
+    
     if (isRandom) {
         isRandom = false;
         randomTag.classList.remove('selected');
-        // Deselect all categories
+        // Deselect all categories (but not the random button itself)
         selectedCategories = [];
         document.querySelectorAll('.category-tag').forEach(tag => {
-            tag.classList.remove('selected');
+            if (tag.id !== 'randomTag') {
+                tag.classList.remove('selected');
+            }
         });
     } else {
         isRandom = true;
         randomTag.classList.add('selected');
-        // Deselect all categories
+        // Deselect all categories (but not the random button itself)
         selectedCategories = [];
         document.querySelectorAll('.category-tag').forEach(tag => {
-            tag.classList.remove('selected');
+            if (tag.id !== 'randomTag') {
+                tag.classList.remove('selected');
+            }
         });
     }
     
@@ -381,6 +395,13 @@ function setupEventListeners() {
     
     document.getElementById('adminFromSelectionBtn')?.addEventListener('click', () => {
         handleAdminClick();
+    });
+    
+    // Back to login/guest selection button
+    document.getElementById('backToLoginBtn')?.addEventListener('click', () => {
+        showLoginGuestSelection();
+        selectedCourse = null;
+        resetCategorySelection();
     });
     
     // Back to course button
@@ -668,10 +689,6 @@ function resetProgressDisplay() {
     const elements = {
         progressFill: document.getElementById('progressFill'),
         progressBar: document.getElementById('progressBar'),
-        completed: document.getElementById('completed'),
-        totalProblems: document.getElementById('totalProblems'),
-        progressPercentage: document.getElementById('progressPercentage'),
-        progressText: document.getElementById('progressText'),
         score: document.getElementById('score'),
         total: document.getElementById('total'),
         scorePercentage: document.getElementById('scorePercentage'),
@@ -680,10 +697,6 @@ function resetProgressDisplay() {
     
     if (elements.progressFill) elements.progressFill.style.width = '0%';
     if (elements.progressBar) elements.progressBar.style.width = '0%';
-    if (elements.completed) elements.completed.textContent = '0';
-    if (elements.totalProblems) elements.totalProblems.textContent = '0';
-    if (elements.progressPercentage) elements.progressPercentage.textContent = '0%';
-    if (elements.progressText) elements.progressText.textContent = '0%';
     if (elements.score) elements.score.textContent = '0';
     if (elements.total) elements.total.textContent = '0';
     if (elements.scorePercentage) elements.scorePercentage.textContent = '0%';
@@ -1085,16 +1098,9 @@ function updateProgress() {
         progressFill.style.width = `${progressPercent}%`;
     }
     
-    const completedEl = document.getElementById('completed');
-    const totalProblemsEl = document.getElementById('totalProblems');
-    const progressPercentageEl = document.getElementById('progressPercentage');
     const scoreEl = document.getElementById('score');
     const totalEl = document.getElementById('total');
     const scorePercentageEl = document.getElementById('scorePercentage');
-    
-    if (completedEl) completedEl.textContent = completed;
-    if (totalProblemsEl) totalProblemsEl.textContent = total;
-    if (progressPercentageEl) progressPercentageEl.textContent = `${progressPercent}%`;
     if (scoreEl) scoreEl.textContent = correct;
     if (totalEl) totalEl.textContent = total;
     if (scorePercentageEl) scorePercentageEl.textContent = `${scorePercent}%`;
@@ -1269,7 +1275,7 @@ function renderUserList(users) {
             <td>${user.provider}</td>
             <td>${createdDate}</td>
             <td>
-                <button class="btn btn-small" onclick="viewUserStats(${user.id})">View Stats</button>
+                <button class="btn btn-small btn-stats" onclick="viewUserStats(${user.id})">View Stats</button>
                 <button class="btn btn-small btn-warning" onclick="resetUserProgress(${user.id})">Reset Progress</button>
                 <button class="btn btn-small btn-danger" onclick="deleteUser(${user.id})">Delete</button>
             </td>

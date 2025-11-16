@@ -11,7 +11,7 @@
     <div class="container">
         <header id="mainHeader">
             <h1 id="headerTitle" style="cursor: pointer;">Math Study Guide</h1>
-            <p class="subtitle">Practice problems with step-by-step solutions</p>
+            <p class="subtitle">Practice problems and track your progress</p>
             <div class="auth-section" id="authSection" style="display: none;">
                 <button class="btn btn-user-email" id="userEmailBtn" style="display: none;">
                     <span id="userEmailText"></span>
@@ -22,9 +22,7 @@
 
         <!-- Unified Login/Guest/Admin Selection Screen (First Screen) -->
         <div id="loginGuestSelection" class="selection-screen">
-            <h2>Welcome to Math Study Guide</h2>
-            <p class="selection-subtitle">Choose how you'd like to proceed</p>
-            
+            <h2>Choose how you'd like to proceed</h2>            
             <div class="auth-options">
                 <button id="continueAsGuestBtn" class="btn btn-primary btn-large">Continue as Guest</button>
                 <button id="loginFromSelectionBtn" class="btn btn-auth btn-large">Login with Google</button>
@@ -37,6 +35,10 @@
         <div id="courseSelection" class="selection-screen" style="display: none;">
             <h2>Choose Course</h2>
             <p class="selection-subtitle">Select a course to study</p>
+            
+            <div class="back-button-container">
+                <button id="backToLoginBtn" class="btn btn-success">← Back</button>
+            </div>
             
             <div class="course-tags" id="courseTags">
                 <!-- Courses will be loaded here -->
@@ -92,9 +94,6 @@
                 <div class="progress-bar" id="progressBar">
                     <div class="progress-fill" id="progressFill"></div>
                 </div>
-                <div class="progress-text">
-                    <span id="completed">0</span> / <span id="totalProblems">40</span> questions completed (<span id="progressPercentage">0%</span>)
-                </div>
             </div>
         </div>
 
@@ -130,7 +129,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=11"></script>
+    <script src="script.js?v=13"></script>
 </body>
 </html>
 
