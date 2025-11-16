@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Math Study Guide</title>
-    <link rel="stylesheet" href="styles.css?v=1">
+    <link rel="stylesheet" href="styles.css?v=2">
     <!-- https://4.files.edl.io/9409/06/12/25/175450-e553e8d3-0176-4d6e-83ab-d19fb87e2427.pdf -->
 </head>
 <body>
@@ -49,18 +49,11 @@
             <p class="selection-subtitle">Select one or more categories, or choose Random for all categories</p>
             
             <div class="back-button-container">
-                <button id="backToCourseBtn" class="btn btn-secondary">← Back to Courses</button>
+                <button id="backToCourseBtn" class="btn btn-success">← Back to Courses</button>
             </div>
             
             <div class="category-tags" id="categoryTags">
-                <!-- Categories will be loaded here -->
-            </div>
-            
-            <div class="random-option">
-                <button class="category-tag random-tag" id="randomTag">
-                    <span class="tag-icon">🎲</span>
-                    Random (All Categories)
-                </button>
+                <!-- Random and categories will be loaded here -->
             </div>
             
             <div class="question-count-selector">
@@ -80,7 +73,7 @@
         <!-- Main Content (hidden initially) -->
         <div id="mainContent" class="main-content" style="display: none;">
             <div class="controls">
-                <button id="newStudyBtn" class="btn btn-secondary">New Study Session</button>
+                <button id="newStudyBtn" class="btn btn-success">New Study Session</button>
                 <button id="finishBtn" class="btn btn-success" style="display: none;">Finish</button>
                 <button id="resetProgressBtn" class="btn btn-warning">Reset Progress</button>
                 <button id="toggleAll" class="btn btn-primary">Show All Answers</button>

@@ -256,6 +256,15 @@ function renderCategoryTags() {
     const container = document.getElementById('categoryTags');
     container.innerHTML = '';
     
+    // Create random button as first element
+    const randomTag = document.createElement('button');
+    randomTag.className = 'category-tag';
+    randomTag.id = 'randomTag';
+    randomTag.innerHTML = '<span class="tag-icon">🎲</span> Random (All Categories)';
+    randomTag.addEventListener('click', toggleRandom);
+    container.appendChild(randomTag);
+    
+    // Then add all categories
     categories.forEach(category => {
         const tag = document.createElement('button');
         tag.className = 'category-tag';
@@ -381,9 +390,6 @@ function setupEventListeners() {
         selectedCourse = null;
         resetCategorySelection();
     });
-    
-    // Random tag
-    document.getElementById('randomTag')?.addEventListener('click', toggleRandom);
     
     // Question count buttons
     document.querySelectorAll('.count-btn').forEach(btn => {
