@@ -53,31 +53,58 @@ router.get('/', (req, res, next) => {
     }
     
     db.all(query, params, (err, rows) => {
-        db.close();
-        
         if (err) {
+            db.close();
             return next(err);
         }
         
-        // Transform data to match frontend expectations
-        const questions = rows.map(row => ({
-            id: row.id,
-            num: row.question_number,
-            question: row.question_text,
-            answer: row.answer,
-            normalized: row.normalized_answer,
-            category: {
-                id: row.category_id,
-                name: row.category_name,
-                description: row.category_description
-            },
-            course: {
-                id: row.course_id,
-                name: row.course_name
-            }
-        }));
+        if (rows.length === 0) {
+            db.close();
+            return res.json([]);
+        }
         
-        res.json(questions);
+        // Get alternative answers for all questions
+        const questionIds = rows.map(r => r.id);
+        const placeholders = questionIds.map(() => '?').join(',');
+        const altQuery = `SELECT question_id, normalized_answer FROM question_alternative_answers WHERE question_id IN (${placeholders})`;
+        
+        db.all(altQuery, questionIds, (altErr, altRows) => {
+            db.close();
+            
+            if (altErr) {
+                return next(altErr);
+            }
+            
+            // Build map of alternative answers
+            const alternativeAnswersMap = {};
+            altRows.forEach(alt => {
+                if (!alternativeAnswersMap[alt.question_id]) {
+                    alternativeAnswersMap[alt.question_id] = [];
+                }
+                alternativeAnswersMap[alt.question_id].push(alt.normalized_answer);
+            });
+            
+            // Transform data to match frontend expectations
+            const questions = rows.map(row => ({
+                id: row.id,
+                num: row.question_number,
+                question: row.question_text,
+                answer: row.answer,
+                normalized: row.normalized_answer,
+                alternativeAnswers: alternativeAnswersMap[row.id] || [],
+                category: {
+                    id: row.category_id,
+                    name: row.category_name,
+                    description: row.category_description
+                },
+                course: {
+                    id: row.course_id,
+                    name: row.course_name
+                }
+            }));
+            
+            res.json(questions);
+        });
     });
 });
 
@@ -97,31 +124,43 @@ router.get('/:id', (req, res, next) => {
     `;
     
     db.get(query, [questionId], (err, row) => {
-        db.close();
-        
         if (err) {
+            db.close();
             return next(err);
         }
         
         if (!row) {
+            db.close();
             return res.status(404).json({ error: 'Question not found' });
         }
         
-        res.json({
-            id: row.id,
-            num: row.question_number,
-            question: row.question_text,
-            answer: row.answer,
-            normalized: row.normalized_answer,
-            category: {
-                id: row.category_id,
-                name: row.category_name,
-                description: row.category_description
-            },
-            course: {
-                id: row.course_id,
-                name: row.course_name
+        // Get alternative answers for this question
+        db.all('SELECT normalized_answer FROM question_alternative_answers WHERE question_id = ?', [questionId], (altErr, altRows) => {
+            db.close();
+            
+            if (altErr) {
+                return next(altErr);
             }
+            
+            const alternativeAnswers = altRows.map(alt => alt.normalized_answer);
+            
+            res.json({
+                id: row.id,
+                num: row.question_number,
+                question: row.question_text,
+                answer: row.answer,
+                normalized: row.normalized_answer,
+                alternativeAnswers: alternativeAnswers,
+                category: {
+                    id: row.category_id,
+                    name: row.category_name,
+                    description: row.category_description
+                },
+                course: {
+                    id: row.course_id,
+                    name: row.course_name
+                }
+            });
         });
     });
 });

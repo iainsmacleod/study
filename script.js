@@ -491,6 +491,49 @@ function setupEventListeners() {
     // Show/hide all answers
     document.getElementById('toggleAll')?.addEventListener('click', showAllAnswers);
     document.getElementById('hideAll')?.addEventListener('click', hideAllAnswers);
+    
+    // Finish button - clears questions but keeps stats, returns to category selection
+    document.getElementById('finishBtn')?.addEventListener('click', async () => {
+        // Clear local question state (allows questions to be answered again)
+        currentQuestions = [];
+        attempts = {};
+        
+        // Clear questions content
+        const questionsContent = document.getElementById('questionsContent');
+        if (questionsContent) {
+            questionsContent.innerHTML = '';
+        }
+        
+        // Reset progress display
+        const progressFill = document.getElementById('progressFill');
+        const completedEl = document.getElementById('completed');
+        const totalProblemsEl = document.getElementById('totalProblems');
+        const progressPercentageEl = document.getElementById('progressPercentage');
+        const scoreEl = document.getElementById('score');
+        const totalEl = document.getElementById('total');
+        const scorePercentageEl = document.getElementById('scorePercentage');
+        
+        if (progressFill) progressFill.style.width = '0%';
+        if (completedEl) completedEl.textContent = '0';
+        if (totalProblemsEl) totalProblemsEl.textContent = '0';
+        if (progressPercentageEl) progressPercentageEl.textContent = '0%';
+        if (scoreEl) scoreEl.textContent = '0';
+        if (totalEl) totalEl.textContent = '0';
+        if (scorePercentageEl) scorePercentageEl.textContent = '0%';
+        
+        // Hide Finish button
+        const finishBtn = document.getElementById('finishBtn');
+        if (finishBtn) {
+            finishBtn.style.display = 'none';
+        }
+        
+        // Return to category selection (keep course selected)
+        document.getElementById('mainContent').style.display = 'none';
+        document.getElementById('categorySelection').style.display = 'block';
+        
+        // Note: We do NOT delete progress from database - stats are preserved
+        console.log('Session finished - questions cleared, stats preserved, returned to category selection');
+    });
 }
 
 // Reset category selection
@@ -696,22 +739,31 @@ async function loadUserProgress() {
 // Normalize user input
 function normalizeInput(input) {
     if (!input) return "";
-    return input
+    let normalized = input
         .toLowerCase()
         .replace(/\s+/g, "")
         .replace(/≥|>=/g, ">=")
         .replace(/≤|<=/g, "<=")
-        .replace(/infinitenumberofsolutions|infinitesolutions|infinitelymanysolutions/g, "infinitenumberofsolutions")
-        .replace(/nosolution|nosolutions/g, "nosolution");
+        .replace(/infinitenumberofsolutions|infinitesolutions|infinitelymanysolutions|infinite/g, "infinitenumberofsolutions")
+        .replace(/nosolution|nosolutions|none/g, "nosolution");
+    return normalized;
 }
 
 // Check if answer is correct
-function checkAnswer(userInput, correctAnswer) {
+function checkAnswer(userInput, correctAnswer, alternativeAnswers = []) {
     const normalized = normalizeInput(userInput);
     const correct = normalizeInput(correctAnswer);
     
+    // Check against primary answer
     if (normalized === correct) return true;
     
+    // Check against alternative answers
+    for (const alt of alternativeAnswers) {
+        const altNormalized = normalizeInput(alt);
+        if (normalized === altNormalized) return true;
+    }
+    
+    // Special handling for coordinate pairs
     if (correct.match(/^\(-?\d+,-?\d+\)$/)) {
         const coordMatch = normalized.match(/^\((-?\d+),(-?\d+)\)$/);
         if (coordMatch) {
@@ -724,11 +776,13 @@ function checkAnswer(userInput, correctAnswer) {
         }
     }
     
+    // Special handling for integers
     if (correct.match(/^-?\d+$/)) {
         const numMatch = normalized.match(/^-?\d+$/);
         if (numMatch && numMatch[0] === correct) return true;
     }
     
+    // Special handling for fractions
     if (correct.includes("/")) {
         const fracMatch = normalized.match(/^(-?\d+)\/(-?\d+)$/);
         if (fracMatch) {
@@ -769,7 +823,7 @@ async function submitAnswer(problemNum, problemId) {
     const problem = currentQuestions.find(q => q.id === problemNum);
     if (!problem) return;
     
-    const isCorrect = checkAnswer(userAnswer, problem.normalized);
+    const isCorrect = checkAnswer(userAnswer, problem.normalized, problem.alternativeAnswers || []);
     
     if (isCorrect) {
         attempts[problemId].correct = true;
@@ -916,6 +970,16 @@ function updateProgress() {
     if (scoreEl) scoreEl.textContent = correct;
     if (totalEl) totalEl.textContent = total;
     if (scorePercentageEl) scorePercentageEl.textContent = `${scorePercent}%`;
+    
+    // Show Finish button when all questions are completed
+    const finishBtn = document.getElementById('finishBtn');
+    if (finishBtn) {
+        if (completed === total && total > 0) {
+            finishBtn.style.display = 'inline-block';
+        } else {
+            finishBtn.style.display = 'none';
+        }
+    }
 }
 
 // Make functions globally available

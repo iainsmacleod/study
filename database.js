@@ -64,6 +64,13 @@ function initSchema(db) {
                 FOREIGN KEY (question_id) REFERENCES questions(id),
                 UNIQUE(user_id, question_id)
             )`,
+            `CREATE TABLE IF NOT EXISTS question_alternative_answers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                question_id INTEGER NOT NULL,
+                normalized_answer TEXT NOT NULL,
+                FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
+                UNIQUE(question_id, normalized_answer)
+            )`,
             `CREATE INDEX IF NOT EXISTS idx_questions_course ON questions(course_id)`,
             `CREATE INDEX IF NOT EXISTS idx_questions_category ON questions(category_id)`,
             `CREATE INDEX IF NOT EXISTS idx_user_progress_user ON user_progress(user_id)`,

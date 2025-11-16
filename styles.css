@@ -296,6 +296,17 @@ header h1 {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
+.btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #218838;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
 .progress-section {
     padding: 30px 40px;
     background: #f8f9fa;

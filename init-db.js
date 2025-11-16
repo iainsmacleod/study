@@ -127,23 +127,60 @@ async function seedDatabase() {
             });
         }
         
-        // Insert questions
+        // Insert questions and alternative answers
         for (const q of questionsData) {
             const courseId = courseMap[q.course];
             const categoryId = categoryMap[q.category];
+            let questionId;
+            
             await new Promise((resolve, reject) => {
                 db.run(
                     'INSERT INTO questions (course_id, category_id, question_text, answer, normalized_answer, question_number) VALUES (?, ?, ?, ?, ?, ?)',
                     [courseId, categoryId, q.question, q.answer, q.normalized, q.num],
-                    (err) => {
+                    function(err) {
                         if (err) {
                             reject(err);
                         } else {
+                            questionId = this.lastID;
                             resolve();
                         }
                     }
                 );
             });
+            
+            // Add alternative answers for "no solution" questions
+            if (q.normalized === 'nosolution') {
+                await new Promise((resolve, reject) => {
+                    db.run(
+                        'INSERT INTO question_alternative_answers (question_id, normalized_answer) VALUES (?, ?)',
+                        [questionId, 'none'],
+                        (err) => {
+                            if (err && !err.message.includes('UNIQUE constraint')) {
+                                reject(err);
+                            } else {
+                                resolve();
+                            }
+                        }
+                    );
+                });
+            }
+            
+            // Add alternative answers for "infinite number of solutions" questions
+            if (q.normalized === 'infinitenumberofsolutions') {
+                await new Promise((resolve, reject) => {
+                    db.run(
+                        'INSERT INTO question_alternative_answers (question_id, normalized_answer) VALUES (?, ?)',
+                        [questionId, 'infinite'],
+                        (err) => {
+                            if (err && !err.message.includes('UNIQUE constraint')) {
+                                reject(err);
+                            } else {
+                                resolve();
+                            }
+                        }
+                    );
+                });
+            }
         }
         
         console.log('Database seeded successfully');
