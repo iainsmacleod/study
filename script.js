@@ -428,8 +428,61 @@ function setupEventListeners() {
     document.getElementById('logoutBtn')?.addEventListener('click', async () => {
         try {
             await fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' });
+            
+            // Reset all state
             currentUser = null;
+            currentQuestions = [];
+            attempts = {};
+            selectedCourse = null;
+            selectedCategories = [];
+            isRandom = false;
+            questionCount = 'all';
+            
+            // Reset UI - hide all screens except course selection
+            document.getElementById('mainContent').style.display = 'none';
+            document.getElementById('categorySelection').style.display = 'none';
+            document.getElementById('courseSelection').style.display = 'block';
+            
+            // Clear questions content
+            const questionsContent = document.getElementById('questionsContent');
+            if (questionsContent) {
+                questionsContent.innerHTML = '';
+            }
+            
+            // Reset progress display
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const scoreText = document.getElementById('scoreText');
+            if (progressBar) {
+                progressBar.style.width = '0%';
+            }
+            if (progressText) {
+                progressText.textContent = '0%';
+            }
+            if (scoreText) {
+                scoreText.textContent = '0 / 0 (0%)';
+            }
+            
+            // Reset category selection UI
+            resetCategorySelection();
+            
+            // Also reset selection state (similar to "New Study Session" button)
+            resetSelection();
+            
+            // Close any open modals/panels
+            const statsModal = document.getElementById('statsModal');
+            const adminPanel = document.getElementById('adminPanel');
+            if (statsModal) {
+                statsModal.style.display = 'none';
+            }
+            if (adminPanel) {
+                adminPanel.style.display = 'none';
+            }
+            
+            // Show login buttons
             showLoginButtons();
+            
+            console.log('Logout successful - UI reset to initial state');
         } catch (error) {
             console.error('Logout failed:', error);
         }
