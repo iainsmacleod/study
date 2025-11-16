@@ -647,6 +647,8 @@ header h1 {
     align-items: center;
     z-index: 1000;
     backdrop-filter: blur(4px);
+    padding: 20px;
+    box-sizing: border-box;
 }
 
 .modal-content {
@@ -658,6 +660,9 @@ header h1 {
     overflow-y: auto;
     position: relative;
     animation: modalFadeIn 0.3s ease;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 @keyframes modalFadeIn {
@@ -675,12 +680,14 @@ header h1 {
     width: 90%;
     max-width: 800px;
     padding: 0;
+    margin: auto;
 }
 
 .admin-modal {
     width: 90%;
     max-width: 1000px;
     padding: 0;
+    margin: auto;
 }
 
 .modal-header {
