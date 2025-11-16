@@ -530,9 +530,8 @@ function setupEventListeners() {
         }
     });
     
-    // Show/hide all answers
-    document.getElementById('toggleAll')?.addEventListener('click', showAllAnswers);
-    document.getElementById('hideAll')?.addEventListener('click', hideAllAnswers);
+    // Toggle show/hide all answers
+    document.getElementById('toggleAll')?.addEventListener('click', toggleAllAnswers);
     
     // Reset progress button - resets current session progress (works for both logged-in and guest users)
     document.getElementById('resetProgressBtn')?.addEventListener('click', async () => {
@@ -1045,34 +1044,38 @@ function toggleAnswer(button, problemNum) {
     }
 }
 
-// Show all answers
-function showAllAnswers() {
+// Toggle show/hide all answers
+function toggleAllAnswers() {
     const answers = document.querySelectorAll('.answer');
     const buttons = document.querySelectorAll('.toggle-answer');
+    const toggleBtn = document.getElementById('toggleAll');
     
-    answers.forEach(answer => answer.classList.add('show'));
-    buttons.forEach(button => {
-        if (button.style.display !== 'none') {
-            button.textContent = 'Hide Answer';
+    // Check if any answer is currently shown
+    const anyShown = Array.from(answers).some(answer => answer.classList.contains('show'));
+    
+    if (anyShown) {
+        // Hide all answers
+        answers.forEach(answer => answer.classList.remove('show'));
+        buttons.forEach(button => {
+            if (button.style.display !== 'none') {
+                button.textContent = 'Show Answer';
+            }
+        });
+        if (toggleBtn) toggleBtn.textContent = 'Show All Answers';
+    } else {
+        // Show all answers
+        answers.forEach(answer => answer.classList.add('show'));
+        buttons.forEach(button => {
+            if (button.style.display !== 'none') {
+                button.textContent = 'Hide Answer';
+            }
+        });
+        if (toggleBtn) toggleBtn.textContent = 'Hide All Answers';
+        
+        if (window.MathJax && window.MathJax.typesetPromise) {
+            window.MathJax.typesetPromise().catch((err) => console.log(err));
         }
-    });
-    
-    if (window.MathJax && window.MathJax.typesetPromise) {
-        window.MathJax.typesetPromise().catch((err) => console.log(err));
     }
-}
-
-// Hide all answers
-function hideAllAnswers() {
-    const answers = document.querySelectorAll('.answer');
-    const buttons = document.querySelectorAll('.toggle-answer');
-    
-    answers.forEach(answer => answer.classList.remove('show'));
-    buttons.forEach(button => {
-        if (button.style.display !== 'none') {
-            button.textContent = 'Show Answer';
-        }
-    });
 }
 
 // Update progress

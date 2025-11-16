@@ -274,8 +274,8 @@ header h1 {
 
 .main-content {
     display: block;
-    background: rgba(255, 255, 255, 0.35);
-    border-radius: 12px;
+    /* background: rgba(255, 255, 255, 0.35); */
+    border-radius: 20px;
 }
 
 .controls {
@@ -887,6 +887,21 @@ mjx-mtd {
     
     .modal-body {
         padding: 20px;
+    }
+    
+    .controls {
+        flex-direction: column;
+        gap: 10px;
+        padding: 15px 20px;
+    }
+    
+    .controls .btn {
+        width: 100%;
+    }
+    
+    .problem-card {
+        min-width: 0;
+        max-width: 100%;
     }
     
     .stats-table {
