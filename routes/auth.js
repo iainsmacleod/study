@@ -5,20 +5,6 @@ const passport = require('passport');
 
 // GET /api/auth/user - Get current user
 router.get('/user', (req, res) => {
-    console.log('Auth check - isAuthenticated:', req.isAuthenticated());
-    console.log('Auth check - session ID:', req.sessionID);
-    console.log('Auth check - session passport:', req.session.passport);
-    console.log('Auth check - user:', req.user);
-    console.log('Auth check - cookies received:', req.headers.cookie);
-    
-    // Extract session ID from cookie
-    const cookies = req.headers.cookie || '';
-    const sessionCookieMatch = cookies.match(/study\.sid=([^;]+)/);
-    const cookieSessionId = sessionCookieMatch ? sessionCookieMatch[1] : 'none';
-    console.log('Auth check - session ID from cookie:', cookieSessionId);
-    console.log('Auth check - session ID matches cookie?', req.sessionID === cookieSessionId);
-    console.log('Auth check - session is new?', req.session.isNew);
-    
     if (req.isAuthenticated() && req.user) {
         res.json({
             authenticated: true,
@@ -45,12 +31,7 @@ router.get('/google',
 router.get('/google/callback',
     passport.authenticate('google', { failureRedirect: '/?auth=failed' }),
     (req, res) => {
-        console.log('Google OAuth callback successful, user:', req.user);
-        console.log('Session ID before regenerate:', req.sessionID);
-        console.log('Session passport before regenerate:', req.session.passport);
-        
         const redirectUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
-        const userId = req.user.id;
         
         // Regenerate session to get a fresh session ID
         req.session.regenerate((err) => {
@@ -59,17 +40,12 @@ router.get('/google/callback',
                 return res.redirect(redirectUrl);
             }
             
-            console.log('Session regenerated. New Session ID:', req.sessionID);
-            
             // Re-establish the passport session in the new session
             req.login(req.user, (loginErr) => {
                 if (loginErr) {
                     console.error('Error re-logging in after regenerate:', loginErr);
                     return res.redirect(redirectUrl);
                 }
-                
-                console.log('User re-logged in. Session passport:', req.session.passport);
-                console.log('Session ID after login:', req.sessionID);
                 
                 // Save session first
                 req.session.save((saveErr) => {
@@ -78,21 +54,16 @@ router.get('/google/callback',
                         return res.redirect(redirectUrl);
                     }
                     
-                    console.log('Session saved. Final Session ID:', req.sessionID);
-                    
                     // Express-session doesn't set cookies on redirects, so we must set it manually
                     // IMPORTANT: Don't use res.cookie() as it URL-encodes the value, breaking the signature
-                    // Instead, manually build the cookie string to preserve the signature
                     const cookieSignature = require('cookie-signature');
                     const secret = process.env.SESSION_SECRET || 'your-secret-key-change-in-production';
                     const signedValue = cookieSignature.sign(req.sessionID, secret);
                     
-                    // Get cookie config from express-session
                     const cookieConfig = req.session.cookie;
                     const isProduction = process.env.NODE_ENV === 'production';
                     
                     // Build cookie string manually - DO NOT URL-encode the signed value
-                    // Express-session expects the cookie value to NOT be URL-encoded
                     let cookieString = `study.sid=${signedValue}; Path=${cookieConfig.path || '/'}`;
                     
                     if (cookieConfig.maxAge) {
@@ -113,10 +84,7 @@ router.get('/google/callback',
                         cookieString += `; SameSite=${cookieConfig.sameSite}`;
                     }
                     
-                    console.log('Manually setting cookie (not URL-encoded):', cookieString.substring(0, 100) + '...');
                     res.setHeader('Set-Cookie', cookieString);
-                    
-                    // Now redirect - the cookie should be set
                     res.redirect(redirectUrl);
                 });
             });
@@ -136,19 +104,13 @@ router.post('/logout', (req, res) => {
         }
         
         // Destroy the session to clear it from the store
-        const sessionId = req.sessionID;
-        console.log(`[LOGOUT] Destroying session: ${sessionId}`);
-        
         req.session.destroy((destroyErr) => {
             if (destroyErr) {
                 console.error('Error destroying session:', destroyErr);
                 return res.status(500).json({ error: 'Logout failed' });
             }
             
-            console.log(`[LOGOUT] Session ${sessionId} destroyed from store`);
-            
             // Clear the session cookie by setting it to expire immediately
-            // Use the same cookie configuration as express-session
             let cookieString = `study.sid=; Path=${cookieConfig.path || '/'}; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0`;
             
             if (cookieConfig.httpOnly !== false) {
@@ -164,7 +126,6 @@ router.post('/logout', (req, res) => {
             }
             
             res.setHeader('Set-Cookie', cookieString);
-            console.log(`[LOGOUT] Cookie cleared. Logout complete.`);
             res.json({ success: true });
         });
     });

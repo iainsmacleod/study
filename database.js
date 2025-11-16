@@ -71,10 +71,24 @@ function initSchema(db) {
                 FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
                 UNIQUE(question_id, normalized_answer)
             )`,
+            `CREATE TABLE IF NOT EXISTS user_progress_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                question_id INTEGER NOT NULL,
+                is_correct INTEGER DEFAULT 0,
+                attempts INTEGER DEFAULT 0,
+                answered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                session_id TEXT,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (question_id) REFERENCES questions(id)
+            )`,
             `CREATE INDEX IF NOT EXISTS idx_questions_course ON questions(course_id)`,
             `CREATE INDEX IF NOT EXISTS idx_questions_category ON questions(category_id)`,
             `CREATE INDEX IF NOT EXISTS idx_user_progress_user ON user_progress(user_id)`,
-            `CREATE INDEX IF NOT EXISTS idx_user_progress_question ON user_progress(question_id)`
+            `CREATE INDEX IF NOT EXISTS idx_user_progress_question ON user_progress(question_id)`,
+            `CREATE INDEX IF NOT EXISTS idx_user_progress_history_user ON user_progress_history(user_id)`,
+            `CREATE INDEX IF NOT EXISTS idx_user_progress_history_question ON user_progress_history(question_id)`,
+            `CREATE INDEX IF NOT EXISTS idx_user_progress_history_answered_at ON user_progress_history(answered_at)`
         ];
 
         let completed = 0;

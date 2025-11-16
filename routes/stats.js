@@ -20,33 +20,35 @@ router.get('/', (req, res, next) => {
         WHERE user_id = ? AND completed_at IS NOT NULL
     `;
     
-    // Get stats by course
+    // Get stats by course (with completion percentages)
     const courseQuery = `
         SELECT 
             c.id as courseId,
             c.name as courseName,
-            COUNT(*) as total,
+            COUNT(DISTINCT up.question_id) as completed,
+            COUNT(DISTINCT q.id) as totalQuestions,
             SUM(CASE WHEN up.is_correct = 1 THEN 1 ELSE 0 END) as correct
-        FROM user_progress up
-        JOIN questions q ON up.question_id = q.id
-        JOIN courses c ON q.course_id = c.id
-        WHERE up.user_id = ? AND up.completed_at IS NOT NULL
+        FROM courses c
+        LEFT JOIN questions q ON c.id = q.course_id
+        LEFT JOIN user_progress up ON q.id = up.question_id AND up.user_id = ? AND up.completed_at IS NOT NULL
         GROUP BY c.id, c.name
+        HAVING totalQuestions > 0
         ORDER BY c.name
     `;
     
-    // Get stats by category
+    // Get stats by category (with completion percentages)
     const categoryQuery = `
         SELECT 
             cat.id as categoryId,
             cat.name as categoryName,
-            COUNT(*) as total,
+            COUNT(DISTINCT up.question_id) as completed,
+            COUNT(DISTINCT q.id) as totalQuestions,
             SUM(CASE WHEN up.is_correct = 1 THEN 1 ELSE 0 END) as correct
-        FROM user_progress up
-        JOIN questions q ON up.question_id = q.id
-        JOIN categories cat ON q.category_id = cat.id
-        WHERE up.user_id = ? AND up.completed_at IS NOT NULL
+        FROM categories cat
+        LEFT JOIN questions q ON cat.id = q.category_id
+        LEFT JOIN user_progress up ON q.id = up.question_id AND up.user_id = ? AND up.completed_at IS NOT NULL
         GROUP BY cat.id, cat.name
+        HAVING totalQuestions > 0
         ORDER BY cat.name
     `;
     
@@ -115,22 +117,42 @@ router.get('/', (req, res, next) => {
                         const percentage = total > 0 ? (correct / total) * 100 : 0;
                         
                         // Format course stats
-                        const byCourse = courseRows.map(row => ({
-                            courseId: row.courseId,
-                            courseName: row.courseName,
-                            correct: row.correct,
-                            total: row.total,
-                            percentage: row.total > 0 ? (row.correct / row.total) * 100 : 0
-                        }));
+                        const byCourse = courseRows.map(row => {
+                            const completed = row.completed || 0;
+                            const totalQuestions = row.totalQuestions || 0;
+                            const correct = row.correct || 0;
+                            const completionPercent = totalQuestions > 0 ? (completed / totalQuestions) * 100 : 0;
+                            const accuracyPercent = completed > 0 ? (correct / completed) * 100 : 0;
+                            
+                            return {
+                                courseId: row.courseId,
+                                courseName: row.courseName,
+                                completed: completed,
+                                totalQuestions: totalQuestions,
+                                correct: correct,
+                                completionPercentage: Math.round(completionPercent * 100) / 100,
+                                accuracyPercentage: Math.round(accuracyPercent * 100) / 100
+                            };
+                        });
                         
                         // Format category stats
-                        const byCategory = categoryRows.map(row => ({
-                            categoryId: row.categoryId,
-                            categoryName: row.categoryName,
-                            correct: row.correct,
-                            total: row.total,
-                            percentage: row.total > 0 ? (row.correct / row.total) * 100 : 0
-                        }));
+                        const byCategory = categoryRows.map(row => {
+                            const completed = row.completed || 0;
+                            const totalQuestions = row.totalQuestions || 0;
+                            const correct = row.correct || 0;
+                            const completionPercent = totalQuestions > 0 ? (completed / totalQuestions) * 100 : 0;
+                            const accuracyPercent = completed > 0 ? (correct / completed) * 100 : 0;
+                            
+                            return {
+                                categoryId: row.categoryId,
+                                categoryName: row.categoryName,
+                                completed: completed,
+                                totalQuestions: totalQuestions,
+                                correct: correct,
+                                completionPercentage: Math.round(completionPercent * 100) / 100,
+                                accuracyPercentage: Math.round(accuracyPercent * 100) / 100
+                            };
+                        });
                         
                         // Format multi-attempt questions
                         const multiAttemptQuestionsFormatted = multiAttemptQuestions.map(row => ({

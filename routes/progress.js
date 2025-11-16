@@ -75,11 +75,13 @@ router.get('/:questionId', (req, res, next) => {
 router.post('/', (req, res, next) => {
     const db = getDB();
     const userId = req.user.id;
-    const { questionId, isCorrect, attempts } = req.body;
+    const { questionId, isCorrect, attempts, sessionId } = req.body;
     
     if (!questionId || typeof isCorrect !== 'boolean' || typeof attempts !== 'number') {
         return res.status(400).json({ error: 'Invalid request data' });
     }
+    
+    const completedAt = isCorrect || attempts >= 3 ? new Date().toISOString() : null;
     
     // Check if progress exists
     db.get(
@@ -91,33 +93,66 @@ router.post('/', (req, res, next) => {
                 return next(err);
             }
             
-            const completedAt = isCorrect || attempts >= 3 ? new Date().toISOString() : null;
-            
-            if (existing) {
-                // Update existing progress
-                db.run(
-                    'UPDATE user_progress SET is_correct = ?, attempts = ?, completed_at = ? WHERE user_id = ? AND question_id = ?',
-                    [isCorrect ? 1 : 0, attempts, completedAt, userId, questionId],
-                    (updateErr) => {
-                        db.close();
-                        if (updateErr) return next(updateErr);
-                        res.json({ success: true });
+            // Always insert into history (append-only)
+            db.run(
+                'INSERT INTO user_progress_history (user_id, question_id, is_correct, attempts, answered_at, session_id) VALUES (?, ?, ?, ?, ?, ?)',
+                [userId, questionId, isCorrect ? 1 : 0, attempts, new Date().toISOString(), sessionId || null],
+                (historyErr) => {
+                    if (historyErr) {
+                        console.error('Error inserting into history:', historyErr);
+                        // Continue even if history insert fails
                     }
-                );
-            } else {
-                // Insert new progress
-                db.run(
-                    'INSERT INTO user_progress (user_id, question_id, is_correct, attempts, completed_at) VALUES (?, ?, ?, ?, ?)',
-                    [userId, questionId, isCorrect ? 1 : 0, attempts, completedAt],
-                    (insertErr) => {
-                        db.close();
-                        if (insertErr) return next(insertErr);
-                        res.json({ success: true });
+                    
+                    // Update or insert into active progress
+                    if (existing) {
+                        // Update existing progress
+                        db.run(
+                            'UPDATE user_progress SET is_correct = ?, attempts = ?, completed_at = ? WHERE user_id = ? AND question_id = ?',
+                            [isCorrect ? 1 : 0, attempts, completedAt, userId, questionId],
+                            (updateErr) => {
+                                db.close();
+                                if (updateErr) return next(updateErr);
+                                res.json({ success: true });
+                            }
+                        );
+                    } else {
+                        // Insert new progress
+                        db.run(
+                            'INSERT INTO user_progress (user_id, question_id, is_correct, attempts, completed_at) VALUES (?, ?, ?, ?, ?)',
+                            [userId, questionId, isCorrect ? 1 : 0, attempts, completedAt],
+                            (insertErr) => {
+                                db.close();
+                                if (insertErr) return next(insertErr);
+                                res.json({ success: true });
+                            }
+                        );
                     }
-                );
-            }
+                }
+            );
         }
     );
+});
+
+// DELETE /api/progress - Delete progress for specific questions
+router.delete('/', (req, res, next) => {
+    const db = getDB();
+    const userId = req.user.id;
+    const { questionIds } = req.body;
+    
+    if (!Array.isArray(questionIds) || questionIds.length === 0) {
+        return res.status(400).json({ error: 'Invalid request data' });
+    }
+    
+    const placeholders = questionIds.map(() => '?').join(',');
+    const query = `DELETE FROM user_progress WHERE user_id = ? AND question_id IN (${placeholders})`;
+    
+    db.run(query, [userId, ...questionIds], (err) => {
+        db.close();
+        if (err) {
+            return next(err);
+        }
+        res.json({ success: true });
+    });
 });
 
 module.exports = router;
