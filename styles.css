@@ -641,6 +641,8 @@ mjx-mtd {
     border-radius: 6px;
     transition: all 0.3s ease;
     font-family: inherit;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .answer-input:focus {
@@ -651,6 +653,12 @@ mjx-mtd {
 
 .answer-input:disabled {
     background-color: #d4edda;
+    cursor: not-allowed;
+}
+
+.answer-input:disabled.failed {
+    background-color: #f8d7da;
+    color: #721c24;
     cursor: not-allowed;
 }
 
@@ -1130,6 +1138,15 @@ mjx-mtd {
     
     .stats-table {
         font-size: 0.9em;
+    }
+    
+    .answer-input {
+        min-width: 0;
+        width: 100%;
+    }
+    
+    .answer-input-container {
+        flex-direction: column;
     }
     
     .stats-table th,

@@ -697,10 +697,12 @@ function setupEventListeners() {
                 const input = document.getElementById(`input-${q.id}`);
                 const feedback = document.getElementById(`feedback-${q.id}`);
                 const toggleBtn = document.getElementById(`toggle-${q.id}`);
+                const answer = document.getElementById(`answer-${q.id}`);
                 const submitBtn = input?.parentElement.querySelector('.submit-answer');
                 
                 if (input) {
                     input.disabled = false;
+                    input.classList.remove('failed');
                     input.style.backgroundColor = '';
                     input.value = '';
                 }
@@ -710,12 +712,25 @@ function setupEventListeners() {
                 }
                 if (toggleBtn) {
                     toggleBtn.style.display = 'none';
+                    toggleBtn.textContent = 'Show Answer';
+                }
+                if (answer) {
+                    answer.classList.remove('show');
+                    // Remove any inline display style to let CSS handle it (default is display: none)
+                    answer.style.removeProperty('display');
                 }
                 if (submitBtn) {
                     submitBtn.disabled = false;
                     submitBtn.style.opacity = '1';
+                    submitBtn.style.cursor = '';
                 }
             });
+            
+            // Reset "Show All Answers" button text
+            const toggleAllBtn = document.getElementById('toggleAll');
+            if (toggleAllBtn) {
+                toggleAllBtn.textContent = 'Show All Answers';
+            }
             
             resetProgressDisplay();
             updateProgress();
@@ -747,10 +762,12 @@ function setupEventListeners() {
                 const input = document.getElementById(`input-${q.id}`);
                 const feedback = document.getElementById(`feedback-${q.id}`);
                 const toggleBtn = document.getElementById(`toggle-${q.id}`);
+                const answer = document.getElementById(`answer-${q.id}`);
                 const submitBtn = input?.parentElement.querySelector('.submit-answer');
                 
                 if (input) {
                     input.disabled = false;
+                    input.classList.remove('failed');
                     input.style.backgroundColor = '';
                     input.value = '';
                 }
@@ -760,12 +777,25 @@ function setupEventListeners() {
                 }
                 if (toggleBtn) {
                     toggleBtn.style.display = 'none';
+                    toggleBtn.textContent = 'Show Answer';
+                }
+                if (answer) {
+                    answer.classList.remove('show');
+                    // Remove any inline display style to let CSS handle it (default is display: none)
+                    answer.style.removeProperty('display');
                 }
                 if (submitBtn) {
                     submitBtn.disabled = false;
                     submitBtn.style.opacity = '1';
+                    submitBtn.style.cursor = '';
                 }
             });
+            
+            // Reset "Show All Answers" button text
+            const toggleAllBtn = document.getElementById('toggleAll');
+            if (toggleAllBtn) {
+                toggleAllBtn.textContent = 'Show All Answers';
+            }
             
             resetProgressDisplay();
             updateProgress();
@@ -983,6 +1013,10 @@ function renderQuestions() {
     document.querySelectorAll('.answer-input').forEach(input => {
         input.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
+                // Prevent submission if input is disabled
+                if (input.disabled) {
+                    return;
+                }
                 const problemId = input.getAttribute('data-problem-id');
                 const problemNum = parseInt(input.id.split('-')[1]);
                 const problem = currentQuestions.find(q => q.id === problemNum);
@@ -1011,18 +1045,40 @@ async function loadUserProgress() {
                 // Update UI if completed
                 if (p.isCorrect || p.attempts >= MAX_ATTEMPTS) {
                     const input = document.getElementById(`input-${p.questionId}`);
+                    const feedback = document.getElementById(`feedback-${p.questionId}`);
+                    const toggleBtn = document.getElementById(`toggle-${p.questionId}`);
+                    const submitBtn = input?.parentElement.querySelector('.submit-answer');
+                    
                     if (input) {
                         if (p.isCorrect) {
                             input.disabled = true;
                             input.style.backgroundColor = "#d4edda";
-                            const submitBtn = input.parentElement.querySelector('.submit-answer');
                             if (submitBtn) {
                                 submitBtn.disabled = true;
                                 submitBtn.style.opacity = "0.6";
                             }
-                        } else if (p.attempts >= 3) {
-                            const toggleBtn = document.getElementById(`toggle-${p.questionId}`);
-                            if (toggleBtn) toggleBtn.style.display = "inline-block";
+                        } else if (p.attempts >= MAX_ATTEMPTS) {
+                            // Failed question - disable input and submit button
+                            input.disabled = true;
+                            input.classList.add('failed');
+                            input.style.backgroundColor = "#f8d7da";
+                            
+                            if (submitBtn) {
+                                submitBtn.disabled = true;
+                                submitBtn.style.opacity = "0.6";
+                                submitBtn.style.cursor = "not-allowed";
+                            }
+                            
+                            // Show answer button
+                            if (toggleBtn) {
+                                toggleBtn.style.display = "inline-block";
+                            }
+                            
+                            // Set feedback message
+                            if (feedback) {
+                                feedback.textContent = "✗ Question failed after 3 incorrect attempts. Use 'Show Answer' to view the solution.";
+                                feedback.className = "feedback feedback-error";
+                            }
                         }
                     }
                 }
@@ -1101,7 +1157,12 @@ async function submitAnswer(problemNum, problemId) {
     const feedback = document.getElementById(`feedback-${problemNum}`);
     const toggleBtn = document.getElementById(`toggle-${problemNum}`);
     
+    // Prevent submission if already correct or if input is disabled (failed after 3 attempts)
     if (attempts[problemId] && attempts[problemId].correct) {
+        return;
+    }
+    
+    if (input && input.disabled) {
         return;
     }
     
@@ -1144,8 +1205,23 @@ async function submitAnswer(problemNum, problemId) {
             feedback.textContent = `✗ Incorrect. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`;
             feedback.className = "feedback feedback-error";
         } else {
-            feedback.textContent = "✗ Incorrect. Show answer button unlocked.";
+            // After 3rd incorrect attempt - block further input
+            feedback.textContent = "✗ Question failed after 3 incorrect attempts. Use 'Show Answer' to view the solution.";
             feedback.className = "feedback feedback-error";
+            
+            // Disable input and submit button
+            input.disabled = true;
+            input.classList.add('failed');
+            input.style.backgroundColor = "#f8d7da";
+            
+            const submitBtn = input.parentElement.querySelector('.submit-answer');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.style.opacity = "0.6";
+                submitBtn.style.cursor = "not-allowed";
+            }
+            
+            // Show answer button remains visible
             toggleBtn.style.display = "inline-block";
             
             // Save progress to API
@@ -1182,7 +1258,12 @@ async function saveProgress(questionId, isCorrect, attempts) {
 // Toggle answer
 function toggleAnswer(button, problemNum) {
     const answer = document.getElementById(`answer-${problemNum}`);
+    if (!answer) return;
+    
     const isShowing = answer.classList.contains('show');
+    
+    // Always remove any inline display style first to ensure CSS can control it
+    answer.style.removeProperty('display');
     
     if (isShowing) {
         answer.classList.remove('show');
@@ -1208,7 +1289,11 @@ function toggleAllAnswers() {
     
     if (anyShown) {
         // Hide all answers
-        answers.forEach(answer => answer.classList.remove('show'));
+        answers.forEach(answer => {
+            answer.classList.remove('show');
+            // Remove any inline display style to let CSS handle it
+            answer.style.removeProperty('display');
+        });
         buttons.forEach(button => {
             if (button.style.display !== 'none') {
                 button.textContent = 'Show Answer';
@@ -1217,7 +1302,11 @@ function toggleAllAnswers() {
         if (toggleBtn) toggleBtn.textContent = 'Show All Answers';
     } else {
         // Show all answers
-        answers.forEach(answer => answer.classList.add('show'));
+        answers.forEach(answer => {
+            // Remove any inline display style first to ensure CSS can control it
+            answer.style.removeProperty('display');
+            answer.classList.add('show');
+        });
         buttons.forEach(button => {
             if (button.style.display !== 'none') {
                 button.textContent = 'Hide Answer';
