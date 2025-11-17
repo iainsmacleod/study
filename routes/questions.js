@@ -6,17 +6,35 @@ const { getDB } = require('../database');
 router.get('/', (req, res, next) => {
     const db = getDB();
     const { course, categories, count, random } = req.query;
+    const isAuthenticated = req.isAuthenticated && req.isAuthenticated();
+    const userId = isAuthenticated && req.user ? req.user.id : null;
     
     let query = `
         SELECT q.id, q.question_text, q.answer, q.normalized_answer, q.question_number,
                c.id as category_id, c.name as category_name, c.description as category_description,
-               co.id as course_id, co.name as course_name
+               co.id as course_id, co.name as course_name`;
+    
+    // Add is_correct column only if authenticated
+    if (userId) {
+        query += `, up.is_correct`;
+    }
+    
+    query += `
         FROM questions q
         JOIN categories c ON q.category_id = c.id
         JOIN courses co ON q.course_id = co.id
     `;
     
+    // LEFT JOIN user_progress if authenticated
+    if (userId) {
+        query += ` LEFT JOIN user_progress up ON q.id = up.question_id AND up.user_id = ?`;
+    }
+    
     const params = [];
+    if (userId) {
+        params.push(userId);
+    }
+    
     const conditions = [];
     
     // Filter by course (required)
@@ -37,20 +55,26 @@ router.get('/', (req, res, next) => {
         query += ' WHERE ' + conditions.join(' AND ');
     }
     
-    // Random order if requested
-    if (random === 'true' || categories === 'random') {
-        query += ' ORDER BY RANDOM()';
+    // Order by unanswered first (if authenticated), then by random/question_number
+    if (userId) {
+        // Prioritize unanswered: is_correct != 1 or is_correct IS NULL
+        query += ' ORDER BY CASE WHEN up.is_correct = 1 THEN 1 ELSE 0 END';
+        if (random === 'true' || categories === 'random') {
+            query += ', RANDOM()';
+        } else {
+            query += ', q.question_number';
+        }
     } else {
-        query += ' ORDER BY q.question_number';
-    }
-    
-    // Limit count
-    if (count && count !== 'all') {
-        const limit = parseInt(count);
-        if (!isNaN(limit) && limit > 0) {
-            query += ` LIMIT ${limit}`;
+        // Guest users: no prioritization
+        if (random === 'true' || categories === 'random') {
+            query += ' ORDER BY RANDOM()';
+        } else {
+            query += ' ORDER BY q.question_number';
         }
     }
+    
+    // For count limits, we need to handle unanswered vs answered separately
+    const requestedCount = count && count !== 'all' ? parseInt(count) : null;
     
     db.all(query, params, (err, rows) => {
         if (err) {
@@ -61,6 +85,43 @@ router.get('/', (req, res, next) => {
         if (rows.length === 0) {
             db.close();
             return res.json([]);
+        }
+        
+        // If authenticated, separate unanswered and answered questions
+        let unansweredQuestions = [];
+        let answeredQuestions = [];
+        
+        if (userId) {
+            rows.forEach(row => {
+                // Unanswered: is_correct != 1 or is_correct IS NULL
+                if (row.is_correct !== 1) {
+                    unansweredQuestions.push(row);
+                } else {
+                    answeredQuestions.push(row);
+                }
+            });
+            
+            // Check if all questions are answered
+            if (unansweredQuestions.length === 0 && answeredQuestions.length > 0) {
+                db.close();
+                return res.json({ questions: [], allAnswered: true });
+            }
+            
+            // If count is specified, prioritize unanswered, then fill with answered
+            if (requestedCount && !isNaN(requestedCount) && requestedCount > 0) {
+                const selected = [];
+                // Take up to requestedCount from unanswered
+                selected.push(...unansweredQuestions.slice(0, requestedCount));
+                // Fill remaining slots with answered questions
+                if (selected.length < requestedCount) {
+                    const remaining = requestedCount - selected.length;
+                    selected.push(...answeredQuestions.slice(0, remaining));
+                }
+                rows = selected;
+            } else {
+                // For "All", show unanswered first, then answered
+                rows = [...unansweredQuestions, ...answeredQuestions];
+            }
         }
         
         // Get alternative answers for all questions

@@ -128,12 +128,74 @@ app.use((req, res, next) => {
             // Only try to recover if:
             // 1. Session ID doesn't match (cookie doesn't match current session), OR
             // 2. Session is new AND we don't have the data we need (passport or admin)
-            // IMPORTANT: For admin requests, if we don't have isAdmin, always try recovery
-            // because the session might have been saved but not loaded correctly
+            // IMPORTANT: For admin requests, if we don't have isAdmin, ALWAYS try recovery
+            // This is critical because express-session might load a session but not restore isAdmin
+            // even if the session ID matches and the session isn't "new"
             const isAdminRequest = req.path && req.path.includes('/admin');
+            
+            // For admin requests, always try recovery if isAdmin is missing
+            // This handles cases where express-session loaded a session but didn't restore isAdmin
+            // even when sessionIdMatches is true (which would normally skip recovery)
             const needsRecovery = !sessionIdMatches || 
                                   (isNewSession && !hasPassport && !hasAdmin) || 
                                   (isAdminRequest && !hasAdmin);
+            
+            // CRITICAL: For admin requests, if isAdmin is missing, ALWAYS try to recover from store
+            // Even if session ID matches and session isn't new, express-session might not have loaded isAdmin
+            // This is especially important when user is logged in with Google (has passport but missing isAdmin)
+            if (isAdminRequest && !hasAdmin) {
+                console.log('[Session Recovery] Admin request without isAdmin - forcing recovery check');
+                // Force recovery by setting needsRecovery to true
+                const forceRecovery = true;
+                
+                sessionStore.get(unsigned, (err, session) => {
+                    if (err) {
+                        console.error(`[Session Recovery] Error loading session for admin:`, err);
+                        return next();
+                    }
+                    
+                    if (session && session.isAdmin === true) {
+                        console.log('[Session Recovery] Found admin session in store - restoring isAdmin flag');
+                        // Preserve current passport if it exists (from Google login)
+                        const currentPassport = req.session.passport;
+                        
+                        // Restore isAdmin flag
+                        req.session.isAdmin = true;
+                        
+                        // Preserve passport - prefer current (from req.session) over stored
+                        // This ensures Google login is preserved when adding admin
+                        if (currentPassport) {
+                            req.session.passport = currentPassport;
+                            console.log('[Session Recovery] Preserving current passport data');
+                        } else if (session.passport) {
+                            req.session.passport = session.passport;
+                            console.log('[Session Recovery] Restoring passport from stored session');
+                        }
+                        
+                        // Mark session as modified so it's saved
+                        req.session.touch();
+                        
+                        // Trigger Passport deserialization if passport exists
+                        if (req.session.passport && req.session.passport.user) {
+                            const passport = require('passport');
+                            passport.deserializeUser(req.session.passport.user, (err, user) => {
+                                if (err) {
+                                    console.error(`[Session Recovery] Error deserializing user:`, err);
+                                } else if (user) {
+                                    req.user = user;
+                                }
+                                next();
+                            });
+                        } else {
+                            next();
+                        }
+                    } else {
+                        console.log('[Session Recovery] Admin session not found in store or isAdmin not set');
+                        next();
+                    }
+                });
+                return; // Don't continue with normal recovery flow
+            }
             
             if (needsRecovery) {
                 sessionStore.get(unsigned, (err, session) => {
@@ -146,9 +208,13 @@ app.use((req, res, next) => {
                         // Force the session ID to match the cookie
                         req.sessionID = unsigned;
                         
-                        // CRITICAL: Save isAdmin flag BEFORE merging (Object.assign will overwrite it)
+                        // CRITICAL: Save flags BEFORE merging (Object.assign will overwrite them)
                         const storedIsAdmin = session.isAdmin;
                         const storedPassport = session.passport;
+                        
+                        // Preserve current session flags if they exist (in case stored session is missing them)
+                        const currentIsAdmin = req.session.isAdmin;
+                        const currentPassport = req.session.passport;
                         
                         // Merge stored session data into req.session, preserving methods
                         Object.assign(req.session, session);
@@ -159,16 +225,23 @@ app.use((req, res, next) => {
                             Object.assign(req.session.cookie, session.cookie);
                         }
                         
-                        // CRITICAL: Explicitly restore isAdmin flag from stored session
-                        // This must be done AFTER Object.assign to ensure it's not overwritten
+                        // CRITICAL: Explicitly restore flags - prefer stored values, but keep current if stored is missing
+                        // This ensures both passport and isAdmin can coexist
                         if (storedIsAdmin !== undefined) {
                             req.session.isAdmin = storedIsAdmin;
                             console.log('[Session Recovery] Restored isAdmin flag:', storedIsAdmin);
+                        } else if (currentIsAdmin !== undefined) {
+                            req.session.isAdmin = currentIsAdmin;
+                            console.log('[Session Recovery] Preserved current isAdmin flag:', currentIsAdmin);
                         }
                         
-                        // Ensure passport is preserved
+                        // Ensure passport is preserved - prefer stored, but keep current if stored is missing
                         if (storedPassport) {
                             req.session.passport = storedPassport;
+                            console.log('[Session Recovery] Restored passport data');
+                        } else if (currentPassport) {
+                            req.session.passport = currentPassport;
+                            console.log('[Session Recovery] Preserved current passport data');
                         }
                         
                         // CRITICAL: Trigger Passport to deserialize the user after loading the session

@@ -48,9 +48,9 @@ header h1 {
     align-items: center;
     gap: 15px;
     width: 100%;
-    max-width: 600px;
+    /* max-width: 600px;
     margin-left: auto;
-    margin-right: auto;
+    margin-right: auto; */
 }
 
 .btn-auth {
@@ -213,6 +213,20 @@ header h1 {
     border-color: #5B21B6;
 }
 
+.category-tag.completed {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    color: #000000;
+    border-color: #FFD700;
+    font-weight: 700;
+}
+
+.category-tag.completed:hover {
+    background: linear-gradient(135deg, #FFA500 0%, #FF8C00 100%);
+    border-color: #FFA500;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(255, 215, 0, 0.4);
+}
+
 .tag-icon {
     font-size: 1.2em;
 }
@@ -274,7 +288,7 @@ header h1 {
 
 .main-content {
     display: block;
-    background: rgba(255, 255, 255, 0.35);
+    /* background: rgba(255, 255, 255, 0.35); */
     border-radius: 20px;
 }
 
@@ -380,6 +394,66 @@ header h1 {
 
 .progress-bar-container {
     width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.progress-bar-container .progress-bar {
+    flex: 1;
+}
+
+.accuracy-circle-container {
+    flex-shrink: 0;
+}
+
+.accuracy-circle {
+    width: 80px;
+    height: 80px;
+    position: relative;
+}
+
+.accuracy-circle-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.accuracy-circle-bg {
+    fill: none;
+    stroke: #e9ecef;
+    stroke-width: 8;
+}
+
+.accuracy-circle-progress {
+    fill: none;
+    stroke-width: 8;
+    stroke-linecap: round;
+    stroke-dasharray: 283;
+    stroke-dashoffset: 283;
+    transition: stroke-dashoffset 0.5s ease, stroke 0.5s ease;
+}
+
+.accuracy-circle-progress.accuracy-red {
+    stroke: #DC2626;
+}
+
+.accuracy-circle-progress.accuracy-green {
+    stroke: #10B981;
+}
+
+.accuracy-circle-progress.accuracy-gold {
+    stroke: #FFD700;
+}
+
+.accuracy-circle-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.1em;
+    font-weight: 700;
+    color: #000000;
 }
 
 .progress-bar {
@@ -390,14 +464,16 @@ header h1 {
     overflow: hidden;
     position: relative;
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
-    margin-bottom: 10px;
+}
+
+.progress-bar-container .progress-bar {
+    margin-bottom: 0;
 }
 
 .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #5B21B6 0%, #6B21A8 100%);
     border-radius: 15px;
-    transition: width 0.5s ease;
+    transition: width 0.5s ease, background 0.5s ease;
     width: 0%;
     display: flex;
     align-items: center;
@@ -405,6 +481,62 @@ header h1 {
     color: white;
     font-weight: 600;
     font-size: 0.85em;
+    /* Default color (will be set dynamically via JavaScript) */
+    background: linear-gradient(90deg, #DC2626 0%, #EF4444 100%);
+    position: relative;
+    overflow: visible;
+}
+
+.progress-fill .score-text {
+    color: white;
+    font-weight: 600;
+    font-size: 0.9em;
+    white-space: nowrap;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    z-index: 1;
+}
+
+/* Progress bar color classes based on percentage */
+.progress-fill.progress-red {
+    background: linear-gradient(90deg, #DC2626 0%, #EF4444 100%);
+}
+
+.progress-fill.progress-blue {
+    background: linear-gradient(90deg, #3B82F6 0%, #60A5FA 100%);
+}
+
+.progress-fill.progress-green {
+    background: linear-gradient(90deg, #10B981 0%, #34D399 100%);
+}
+
+.progress-fill.progress-gold {
+    background: linear-gradient(90deg, #FFD700 0%, #FFA500 100%);
+}
+
+/* Stats modal progress bars */
+.progress-bar-stats {
+    height: 20px;
+    background: #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin: 5px 0;
+}
+
+.progress-bar-stats .progress-fill {
+    height: 100%;
+    border-radius: 10px;
+}
+
+/* Smaller accuracy circle for stats modal */
+.stats-section-breakdown .accuracy-circle {
+    width: 60px;
+    height: 60px;
+}
+
+.stats-section-breakdown .accuracy-circle-text {
+    font-size: 0.9em;
 }
 
 .progress-text {
@@ -415,7 +547,7 @@ header h1 {
 }
 
 .content {
-    padding: 40px;
+    /* padding: 40px; */
     border-radius: 20px;
 }
 
@@ -727,6 +859,13 @@ mjx-mtd {
 .report-modal {
     width: 90%;
     max-width: 600px;
+    padding: 0;
+    margin: auto;
+}
+
+.reset-modal {
+    width: 90%;
+    max-width: 700px;
     padding: 0;
     margin: auto;
 }

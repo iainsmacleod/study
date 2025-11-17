@@ -44,12 +44,22 @@ router.post('/login', (req, res) => {
     console.log('[ADMIN] Passwords match:', trimmedPassword === trimmedAdminPassword);
     
     if (trimmedPassword === trimmedAdminPassword && trimmedAdminPassword.length > 0) {
-        // Set isAdmin flag
+        // Preserve existing session data (like passport for Google auth)
+        const existingPassport = req.session.passport;
+        
+        // Set isAdmin flag (this should work alongside Google auth)
         req.session.isAdmin = true;
+        
+        // Ensure passport is preserved if it exists
+        if (existingPassport) {
+            req.session.passport = existingPassport;
+            console.log('[ADMIN] Preserving existing passport data for user:', existingPassport.user);
+        }
         
         // Log session state before save
         console.log('[ADMIN] Before save - session ID:', req.sessionID);
         console.log('[ADMIN] Before save - isAdmin:', req.session.isAdmin);
+        console.log('[ADMIN] Before save - has passport:', !!req.session.passport);
         console.log('[ADMIN] Before save - session keys:', Object.keys(req.session));
         
         // Force session to be saved (mark as modified)
@@ -64,6 +74,26 @@ router.post('/login', (req, res) => {
             console.log('[ADMIN] Login successful, session saved - session ID:', req.sessionID);
             console.log('[ADMIN] After save - isAdmin:', req.session.isAdmin);
             console.log('[ADMIN] After save - session keys:', Object.keys(req.session));
+            
+            // Verify session was saved to store (optional verification)
+            try {
+                const serverModule = require('../server');
+                const store = serverModule.sessionStore || (serverModule.default && serverModule.default.sessionStore);
+                if (store) {
+                    store.get(req.sessionID, (storeErr, storedSession) => {
+                        if (storeErr) {
+                            console.error('[ADMIN] Error verifying session in store:', storeErr);
+                        } else if (storedSession) {
+                            console.log('[ADMIN] Session verified in store - isAdmin:', storedSession.isAdmin);
+                        } else {
+                            console.warn('[ADMIN] Session not found in store after save!');
+                        }
+                    });
+                }
+            } catch (verifyErr) {
+                // Verification is optional, don't fail the request if it errors
+                console.warn('[ADMIN] Could not verify session in store:', verifyErr.message);
+            }
             
             // Manually set the cookie header to ensure it's sent correctly
             // This is similar to what we do in the OAuth callback

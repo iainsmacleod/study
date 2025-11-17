@@ -230,6 +230,43 @@ function renderCourseTags() {
     });
 }
 
+// Check category completion status
+async function checkCategoryCompletion() {
+    if (!currentUser || !selectedCourse) {
+        return {};
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/stats`, { credentials: 'include' });
+        if (!response.ok) return {};
+        
+        const stats = await response.json();
+        const completionMap = {};
+        
+        // Map category stats by category name
+        if (stats.byCategory && Array.isArray(stats.byCategory)) {
+            stats.byCategory.forEach(cat => {
+                // Only include categories from the current course
+                // We'll filter by checking if category exists in our categories array
+                const category = categories.find(c => c.name === cat.categoryName);
+                if (category) {
+                    completionMap[cat.categoryName] = {
+                        completed: cat.completed || 0,
+                        totalQuestions: cat.totalQuestions || 0,
+                        accuracyPercentage: cat.accuracyPercentage || 0,
+                        isCompleted: (cat.completionPercentage || 0) === 100
+                    };
+                }
+            });
+        }
+        
+        return completionMap;
+    } catch (error) {
+        console.error('Failed to load category completion:', error);
+        return {};
+    }
+}
+
 // Select course and load categories
 async function selectCourse(courseName) {
     selectedCourse = courseName;
@@ -243,7 +280,9 @@ async function selectCourse(courseName) {
         document.getElementById('courseSelection').style.display = 'none';
         document.getElementById('categorySelection').style.display = 'block';
         
-        renderCategoryTags();
+        // Check completion status if user is logged in
+        const completionData = await checkCategoryCompletion();
+        renderCategoryTags(completionData);
         resetCategorySelection();
     } catch (error) {
         console.error('Failed to load categories:', error);
@@ -252,9 +291,49 @@ async function selectCourse(courseName) {
 
 
 // Render category tags
-function renderCategoryTags() {
+function renderCategoryTags(completionData = {}) {
     const container = document.getElementById('categoryTags');
     container.innerHTML = '';
+    
+    // Check if all categories are completed
+    let allCompleted = true;
+    let hasCategories = false;
+    
+    if (currentUser && categories.length > 0) {
+        hasCategories = true;
+        categories.forEach(category => {
+            const completion = completionData[category.name];
+            if (!completion || !completion.isCompleted) {
+                allCompleted = false;
+            }
+        });
+    } else {
+        allCompleted = false;
+    }
+    
+    // If all categories are completed, show reset button instead
+    if (allCompleted && hasCategories && currentUser) {
+        const resetContainer = document.createElement('div');
+        resetContainer.style.textAlign = 'center';
+        resetContainer.style.marginTop = '20px';
+        
+        const message = document.createElement('p');
+        message.style.marginBottom = '20px';
+        message.style.color = '#ffffff';
+        message.textContent = 'All sections completed! Reset to try again and beat your scores.';
+        resetContainer.appendChild(message);
+        
+        const resetBtn = document.createElement('button');
+        resetBtn.className = 'btn btn-primary btn-large';
+        resetBtn.textContent = 'Reset Course Progress';
+        resetBtn.addEventListener('click', () => {
+            showCourseResetPrompt(selectedCourse, completionData);
+        });
+        resetContainer.appendChild(resetBtn);
+        
+        container.appendChild(resetContainer);
+        return;
+    }
     
     // Create random button as first element
     const randomTag = document.createElement('button');
@@ -276,7 +355,18 @@ function renderCategoryTags() {
         tag.textContent = category.description || category.name;
         tag.dataset.categoryId = category.id;
         tag.dataset.categoryName = category.name;
-        tag.addEventListener('click', () => toggleCategory(category.name, tag));
+        
+        const completion = completionData[category.name];
+        if (completion && completion.isCompleted) {
+            tag.classList.add('completed');
+            // Change click handler to show reset prompt
+            tag.addEventListener('click', () => {
+                showCategoryResetPrompt(category.name, completion);
+            });
+        } else {
+            tag.addEventListener('click', () => toggleCategory(category.name, tag));
+        }
+        
         container.appendChild(tag);
     });
 }
@@ -564,6 +654,15 @@ function setupEventListeners() {
         await saveQuestion();
     });
     
+    // Reset modal event listeners
+    document.getElementById('closeResetModalBtn')?.addEventListener('click', closeResetModal);
+    document.getElementById('cancelResetBtn')?.addEventListener('click', closeResetModal);
+    document.getElementById('resetProgressModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'resetProgressModal') {
+            closeResetModal();
+        }
+    });
+    
     // Close question editor modal when clicking outside
     document.getElementById('questionEditorModal')?.addEventListener('click', (e) => {
         if (e.target.id === 'questionEditorModal') {
@@ -731,8 +830,7 @@ function resetProgressDisplay() {
         progressBar: document.getElementById('progressBar'),
         score: document.getElementById('score'),
         total: document.getElementById('total'),
-        scorePercentage: document.getElementById('scorePercentage'),
-        scoreText: document.getElementById('scoreText')
+        scorePercentage: document.getElementById('scorePercentage')
     };
     
     if (elements.progressFill) elements.progressFill.style.width = '0%';
@@ -740,7 +838,9 @@ function resetProgressDisplay() {
     if (elements.score) elements.score.textContent = '0';
     if (elements.total) elements.total.textContent = '0';
     if (elements.scorePercentage) elements.scorePercentage.textContent = '0%';
-    if (elements.scoreText) elements.scoreText.textContent = '0 / 0 (0%)';
+    
+    // Reset accuracy circle
+    setAccuracyCircle(0);
 }
 
 // Start study session
@@ -769,7 +869,16 @@ async function startStudy() {
         
         // Fetch questions
         const response = await fetch(`${API_BASE}/questions?${params.toString()}`);
-        currentQuestions = await response.json();
+        const data = await response.json();
+        
+        // Check if all questions are answered
+        if (data.allAnswered === true) {
+            // Show completion message
+            showCompletionMessage();
+            return;
+        }
+        
+        currentQuestions = Array.isArray(data) ? data : (data.questions || []);
         
         if (currentQuestions.length === 0) {
             alert('No questions found for the selected criteria.');
@@ -1122,6 +1231,53 @@ function toggleAllAnswers() {
     }
 }
 
+// Set progress bar color based on percentage
+function setProgressBarColor(progressFill, percentage) {
+    if (!progressFill) return;
+    
+    // Remove all color classes
+    progressFill.classList.remove('progress-red', 'progress-blue', 'progress-green', 'progress-gold');
+    
+    // Set color based on percentage
+    if (percentage >= 100) {
+        progressFill.classList.add('progress-gold');
+    } else if (percentage >= 80) {
+        progressFill.classList.add('progress-green');
+    } else if (percentage >= 30) {
+        progressFill.classList.add('progress-blue');
+    } else {
+        progressFill.classList.add('progress-red');
+    }
+}
+
+// Set accuracy circle color and value based on percentage
+function setAccuracyCircle(accuracyPercent) {
+    const circleProgress = document.getElementById('accuracyCircleProgress');
+    const circleText = document.getElementById('accuracyCircleText');
+    
+    if (!circleProgress || !circleText) return;
+    
+    // Calculate stroke-dashoffset (283 is the circumference for r=45)
+    const circumference = 2 * Math.PI * 45; // ~283
+    const offset = circumference - (accuracyPercent / 100) * circumference;
+    circleProgress.style.strokeDashoffset = offset;
+    
+    // Remove all color classes
+    circleProgress.classList.remove('accuracy-red', 'accuracy-green', 'accuracy-gold');
+    
+    // Set color based on accuracy percentage
+    if (accuracyPercent >= 90) {
+        circleProgress.classList.add('accuracy-gold');
+    } else if (accuracyPercent >= 70) {
+        circleProgress.classList.add('accuracy-green');
+    } else {
+        circleProgress.classList.add('accuracy-red');
+    }
+    
+    // Update text
+    circleText.textContent = `${Math.round(accuracyPercent)}%`;
+}
+
 // Update progress
 function updateProgress() {
     const total = currentQuestions.length;
@@ -1140,17 +1296,25 @@ function updateProgress() {
     const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
     const scorePercent = total > 0 ? Math.round((correct / total) * 100) : 0;
     
+    // Calculate accuracy (correct / completed, or 0 if no completed)
+    const accuracyPercent = completed > 0 ? Math.round((correct / completed) * 100) : 0;
+    
     const progressFill = document.getElementById('progressFill');
     if (progressFill) {
         progressFill.style.width = `${progressPercent}%`;
+        setProgressBarColor(progressFill, progressPercent);
     }
+    
+    // Update accuracy circle
+    setAccuracyCircle(accuracyPercent);
     
     const scoreEl = document.getElementById('score');
     const totalEl = document.getElementById('total');
     const scorePercentageEl = document.getElementById('scorePercentage');
     if (scoreEl) scoreEl.textContent = correct;
     if (totalEl) totalEl.textContent = total;
-    if (scorePercentageEl) scorePercentageEl.textContent = `${scorePercent}%`;
+    // Show completion percentage instead of score percentage
+    if (scorePercentageEl) scorePercentageEl.textContent = `${progressPercent}%`;
     
     // Show Finish button when all questions are completed
     const finishBtn = document.getElementById('finishBtn');
@@ -1160,6 +1324,271 @@ function updateProgress() {
         } else {
             finishBtn.style.display = 'none';
         }
+    }
+}
+
+// Show completion message when all questions are answered
+async function showCompletionMessage() {
+    const mainContent = document.getElementById('mainContent');
+    const questionsContent = document.getElementById('questionsContent');
+    
+    if (!mainContent || !questionsContent) return;
+    
+    // Hide category selection, show main content
+    document.getElementById('categorySelection').style.display = 'none';
+    mainContent.style.display = 'block';
+    
+    // Get user stats to show accuracy
+    let accuracyPercent = 0;
+    let message = 'You\'ve completed all questions in this selection!';
+    
+    if (currentUser) {
+        try {
+            const response = await fetch(`${API_BASE}/stats`, { credentials: 'include' });
+            if (response.ok) {
+                const stats = await response.json();
+                accuracyPercent = stats.overall?.percentage || 0;
+                
+                if (accuracyPercent < 100) {
+                    message += ` Your current accuracy is ${accuracyPercent.toFixed(1)}%. Reset your progress to try again and beat your score!`;
+                } else {
+                    message += ' You got 100%! Reset to try again.';
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load stats:', error);
+        }
+    }
+    
+    // Display completion message
+    questionsContent.innerHTML = `
+        <div style="text-align: center; padding: 40px 20px;">
+            <h2 style="color: #ffffff; margin-bottom: 20px;">🎉 All Questions Completed!</h2>
+            <p style="color: #ffffff; font-size: 1.1em; margin-bottom: 30px;">${message}</p>
+            ${currentUser ? `
+                <button class="btn btn-warning btn-large" id="resetFromCompletionBtn">Reset Progress</button>
+            ` : ''}
+        </div>
+    `;
+    
+    // Add event listener for reset button
+    const resetBtn = document.getElementById('resetFromCompletionBtn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', async () => {
+            // Get question IDs for current selection
+            const questionIds = currentQuestions.map(q => q.id);
+            if (questionIds.length > 0) {
+                await resetProgressForQuestions(questionIds);
+            }
+        });
+    }
+}
+
+// Convert string to Title Case
+function toTitleCase(str) {
+    return str.replace(/\w\S*/g, (txt) => {
+        return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+    });
+}
+
+// Show category reset prompt
+function showCategoryResetPrompt(categoryName, categoryStats) {
+    const modal = document.getElementById('resetProgressModal');
+    const title = document.getElementById('resetModalTitle');
+    const content = document.getElementById('resetModalContent');
+    
+    if (!modal || !title || !content) return;
+    
+    title.textContent = 'Reset Section Progress';
+    
+    const accuracy = categoryStats.accuracyPercentage || 0;
+    const categoryTitle = toTitleCase(categoryName);
+    
+    content.innerHTML = `
+        <p style="margin-bottom: 20px; color: #000000;">
+            You've completed this section! Reset to try again and beat your score?
+        </p>
+        <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <p style="margin: 0; color: #000000; font-weight: 600;">${categoryTitle}</p>
+            <p style="margin: 5px 0 0 0; color: #000000;">
+                Score: ${accuracy.toFixed(1)}%
+            </p>
+        </div>
+    `;
+    
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    
+    // Set up confirm handler
+    const confirmBtn = document.getElementById('confirmResetBtn');
+    if (confirmBtn) {
+        const handler = async () => {
+            const category = categories.find(c => c.name === categoryName);
+            if (category) {
+                await resetCategoryProgress(category.id);
+            }
+            closeResetModal();
+            confirmBtn.removeEventListener('click', handler);
+        };
+        confirmBtn.onclick = handler;
+    }
+}
+
+// Show course reset prompt
+function showCourseResetPrompt(courseName, completionData) {
+    const modal = document.getElementById('resetProgressModal');
+    const title = document.getElementById('resetModalTitle');
+    const content = document.getElementById('resetModalContent');
+    
+    if (!modal || !title || !content) return;
+    
+    title.textContent = 'Reset Course Progress';
+    
+    // Get course stats
+    let courseAccuracy = 0;
+    let totalCompleted = 0;
+    let totalQuestions = 0;
+    
+    Object.values(completionData).forEach(cat => {
+        totalCompleted += cat.completed || 0;
+        totalQuestions += cat.totalQuestions || 0;
+    });
+    
+    if (totalCompleted > 0) {
+        const correct = Object.values(completionData).reduce((sum, cat) => {
+            return sum + (cat.completed || 0) * ((cat.accuracyPercentage || 0) / 100);
+        }, 0);
+        courseAccuracy = (correct / totalCompleted) * 100;
+    }
+    
+    let categoryList = '<ul style="list-style: none; padding: 0; margin: 20px 0;">';
+    categories.forEach(category => {
+        const completion = completionData[category.name];
+        if (completion) {
+            const accuracy = completion.accuracyPercentage || 0;
+            categoryList += `
+                <li style="padding: 10px; margin: 5px 0; background: rgba(255, 255, 255, 0.1); border-radius: 8px;">
+                    <strong style="color: #000000;">${category.description || category.name}</strong>
+                    <span style="color: #000000; float: right;">${completion.completed} / ${completion.totalQuestions} (${accuracy.toFixed(1)}%)</span>
+                </li>
+            `;
+        }
+    });
+    categoryList += '</ul>';
+    
+    content.innerHTML = `
+        <p style="margin-bottom: 20px; color: #000000;">
+            You've completed all sections! Reset to try again and beat your scores?
+        </p>
+        <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <p style="margin: 0; color: #000000; font-weight: 600;">Overall Course Performance</p>
+            <p style="margin: 5px 0 0 0; color: #000000;">
+                ${totalCompleted} / ${totalQuestions} questions (${courseAccuracy.toFixed(1)}% accuracy)
+            </p>
+        </div>
+        <div style="margin-top: 20px;">
+            <p style="margin-bottom: 10px; color: #000000; font-weight: 600;">Section Performance:</p>
+            ${categoryList}
+        </div>
+    `;
+    
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    
+    // Set up confirm handler
+    const confirmBtn = document.getElementById('confirmResetBtn');
+    if (confirmBtn) {
+        const handler = async () => {
+            await resetCourseProgress();
+            closeResetModal();
+            confirmBtn.removeEventListener('click', handler);
+        };
+        confirmBtn.onclick = handler;
+    }
+}
+
+// Close reset modal
+function closeResetModal() {
+    const modal = document.getElementById('resetProgressModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+}
+
+// Reset progress for specific questions
+async function resetProgressForQuestions(questionIds) {
+    if (!currentUser || !questionIds || questionIds.length === 0) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/progress`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ questionIds })
+        });
+        
+        if (response.ok) {
+            // Reload category display to update completion status
+            if (selectedCourse) {
+                const completionData = await checkCategoryCompletion();
+                renderCategoryTags(completionData);
+            }
+            
+            // If we're in a study session, clear it
+            const mainContent = document.getElementById('mainContent');
+            if (mainContent && mainContent.style.display !== 'none') {
+                document.getElementById('categorySelection').style.display = 'block';
+                mainContent.style.display = 'none';
+            }
+        } else {
+            alert('Failed to reset progress. Please try again.');
+        }
+    } catch (error) {
+        console.error('Failed to reset progress:', error);
+        alert('Failed to reset progress. Please try again.');
+    }
+}
+
+// Reset category progress
+async function resetCategoryProgress(categoryId) {
+    if (!currentUser || !categoryId) return;
+    
+    // Get all question IDs for this category
+    try {
+        const response = await fetch(`${API_BASE}/questions?course=${encodeURIComponent(selectedCourse)}`, { credentials: 'include' });
+        const questions = await response.json();
+        const categoryQuestions = questions.filter(q => {
+            const category = categories.find(c => c.id === categoryId);
+            return category && q.category.name === category.name;
+        });
+        const questionIds = categoryQuestions.map(q => q.id);
+        
+        if (questionIds.length > 0) {
+            await resetProgressForQuestions(questionIds);
+        }
+    } catch (error) {
+        console.error('Failed to get category questions:', error);
+        alert('Failed to reset category progress. Please try again.');
+    }
+}
+
+// Reset course progress
+async function resetCourseProgress() {
+    if (!currentUser || !selectedCourse) return;
+    
+    // Get all question IDs for this course
+    try {
+        const response = await fetch(`${API_BASE}/questions?course=${encodeURIComponent(selectedCourse)}`, { credentials: 'include' });
+        const questions = await response.json();
+        const questionIds = questions.map(q => q.id);
+        
+        if (questionIds.length > 0) {
+            await resetProgressForQuestions(questionIds);
+        }
+    } catch (error) {
+        console.error('Failed to get course questions:', error);
+        alert('Failed to reset course progress. Please try again.');
     }
 }
 
@@ -1202,42 +1631,136 @@ function renderStats(stats) {
     if (stats.byCourse && stats.byCourse.length > 0) {
         html += '<div class="stats-section-breakdown">';
         html += '<h4>Course Completion</h4>';
-        html += '<table class="stats-table">';
-        html += '<thead><tr><th>Course</th><th>Completed</th><th>Total</th><th>Completion %</th><th>Accuracy %</th></tr></thead>';
-        html += '<tbody>';
-        stats.byCourse.forEach(course => {
-            html += `<tr>
-                <td>${course.courseName}</td>
-                <td>${course.completed || 0}</td>
-                <td>${course.totalQuestions || 0}</td>
-                <td>${course.completionPercentage || 0}%</td>
-                <td>${course.accuracyPercentage || 0}%</td>
-            </tr>`;
+        stats.byCourse.forEach((course, index) => {
+            const completionPercent = course.completionPercentage || 0;
+            const accuracyPercent = course.accuracyPercentage || 0;
+            html += `<div style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <strong>${course.courseName}</strong>
+                    <span>${completionPercent.toFixed(1)}%</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div class="progress-bar-stats" style="flex: 1;">
+                        <div class="progress-fill" style="width: ${completionPercent}%"></div>
+                    </div>
+                    <div class="accuracy-circle-container">
+                        <div class="accuracy-circle" id="statsAccuracyCircleCourse${index}">
+                            <svg class="accuracy-circle-svg" viewBox="0 0 100 100">
+                                <circle class="accuracy-circle-bg" cx="50" cy="50" r="45"></circle>
+                                <circle class="accuracy-circle-progress stats-accuracy-circle" data-accuracy="${accuracyPercent}" cx="50" cy="50" r="45"></circle>
+                            </svg>
+                            <div class="accuracy-circle-text">${Math.round(accuracyPercent)}%</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                    ${course.completed || 0} / ${course.totalQuestions || 0} questions
+                </div>
+            </div>`;
         });
-        html += '</tbody></table>';
         html += '</div>';
     }
     
     if (stats.byCategory && stats.byCategory.length > 0) {
         html += '<div class="stats-section-breakdown">';
         html += '<h4>Category Completion</h4>';
-        html += '<table class="stats-table">';
-        html += '<thead><tr><th>Category</th><th>Completed</th><th>Total</th><th>Completion %</th><th>Accuracy %</th></tr></thead>';
-        html += '<tbody>';
-        stats.byCategory.forEach(category => {
-            html += `<tr>
-                <td>${category.categoryName}</td>
-                <td>${category.completed || 0}</td>
-                <td>${category.totalQuestions || 0}</td>
-                <td>${category.completionPercentage || 0}%</td>
-                <td>${category.accuracyPercentage || 0}%</td>
-            </tr>`;
+        stats.byCategory.forEach((category, index) => {
+            const completionPercent = category.completionPercentage || 0;
+            const accuracyPercent = category.accuracyPercentage || 0;
+            html += `<div style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <strong>${category.categoryName}</strong>
+                    <span>${completionPercent.toFixed(1)}%</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div class="progress-bar-stats" style="flex: 1;">
+                        <div class="progress-fill" style="width: ${completionPercent}%"></div>
+                    </div>
+                    <div class="accuracy-circle-container">
+                        <div class="accuracy-circle" id="statsAccuracyCircleCategory${index}">
+                            <svg class="accuracy-circle-svg" viewBox="0 0 100 100">
+                                <circle class="accuracy-circle-bg" cx="50" cy="50" r="45"></circle>
+                                <circle class="accuracy-circle-progress stats-accuracy-circle" data-accuracy="${accuracyPercent}" cx="50" cy="50" r="45"></circle>
+                            </svg>
+                            <div class="accuracy-circle-text">${Math.round(accuracyPercent)}%</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                    ${category.completed || 0} / ${category.totalQuestions || 0} questions
+                </div>
+            </div>`;
         });
-        html += '</tbody></table>';
         html += '</div>';
     }
     
     statsContent.innerHTML = html;
+    
+    // Set progress bar colors and accuracy circles after HTML is inserted
+    setTimeout(() => {
+        const progressBars = statsContent.querySelectorAll('.progress-bar-stats .progress-fill');
+        const accuracyCircles = statsContent.querySelectorAll('.stats-accuracy-circle');
+        let barIndex = 0;
+        let circleIndex = 0;
+        
+        // Set colors for course progress bars and accuracy circles
+        if (stats.byCourse && stats.byCourse.length > 0) {
+            stats.byCourse.forEach(course => {
+                const bar = progressBars[barIndex];
+                if (bar) {
+                    setProgressBarColor(bar, course.completionPercentage || 0);
+                }
+                barIndex++;
+                
+                const circle = accuracyCircles[circleIndex];
+                if (circle) {
+                    const accuracy = course.accuracyPercentage || 0;
+                    setStatsAccuracyCircle(circle, accuracy);
+                }
+                circleIndex++;
+            });
+        }
+        
+        // Set colors for category progress bars and accuracy circles
+        if (stats.byCategory && stats.byCategory.length > 0) {
+            stats.byCategory.forEach(category => {
+                const bar = progressBars[barIndex];
+                if (bar) {
+                    setProgressBarColor(bar, category.completionPercentage || 0);
+                }
+                barIndex++;
+                
+                const circle = accuracyCircles[circleIndex];
+                if (circle) {
+                    const accuracy = category.accuracyPercentage || 0;
+                    setStatsAccuracyCircle(circle, accuracy);
+                }
+                circleIndex++;
+            });
+        }
+    }, 0);
+}
+
+// Set accuracy circle for stats modal
+function setStatsAccuracyCircle(circleElement, accuracyPercent) {
+    if (!circleElement) return;
+    
+    // Calculate stroke-dashoffset (283 is the circumference for r=45)
+    const circumference = 2 * Math.PI * 45; // ~283
+    const offset = circumference - (accuracyPercent / 100) * circumference;
+    circleElement.style.strokeDashoffset = offset;
+    
+    // Remove all color classes
+    circleElement.classList.remove('accuracy-red', 'accuracy-green', 'accuracy-gold');
+    
+    // Set color based on accuracy percentage
+    if (accuracyPercent >= 90) {
+        circleElement.classList.add('accuracy-gold');
+    } else if (accuracyPercent >= 70) {
+        circleElement.classList.add('accuracy-green');
+    } else {
+        circleElement.classList.add('accuracy-red');
+    }
 }
 
 // Handle admin button click
