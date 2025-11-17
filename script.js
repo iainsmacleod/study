@@ -521,6 +521,12 @@ function setupEventListeners() {
         document.getElementById('mainContent').style.display = 'none';
         selectedCourse = null;
         resetSelection();
+        
+        // Reset "Show All Answers" button text
+        const toggleAllBtn = document.getElementById('toggleAll');
+        if (toggleAllBtn) {
+            toggleAllBtn.textContent = 'Show All Answers';
+        }
     });
     
     // Note: Google login button is handled in setupEventListeners above as loginFromSelectionBtn
