@@ -1095,8 +1095,9 @@ async function loadUserProgress() {
 function normalizeInput(input) {
     if (!input) return "";
     let normalized = input
+        .trim()  // Remove leading/trailing whitespace first
         .toLowerCase()
-        .replace(/\s+/g, "")
+        .replace(/\s+/g, "")  // Remove all remaining whitespace
         .replace(/≥|>=/g, ">=")
         .replace(/≤|<=/g, "<=")
         .replace(/infinitenumberofsolutions|infinitesolutions|infinitelymanysolutions|infinite/g, "infinitenumberofsolutions")
@@ -1104,26 +1105,198 @@ function normalizeInput(input) {
     return normalized;
 }
 
+// Extract factors from a mathematical expression (e.g., "(m-3)(m+9)" -> ["m-3", "m+9"])
+function extractFactors(expression) {
+    if (!expression || typeof expression !== 'string') return null;
+    
+    // Trim and remove all spaces
+    const cleaned = expression.trim().replace(/\s+/g, '');
+    
+    // EXCLUDE coordinate pairs - they should not be treated as factors
+    // Coordinate pattern: (number,number) - these are ordered pairs, not factors
+    const coordPattern = /^\((-?\d+),(-?\d+)\)$/;
+    if (coordPattern.test(cleaned)) {
+        return null; // This is a coordinate pair, not a product of factors
+    }
+    
+    // Pattern to match factors: parentheses with content, optionally separated by * or implicit multiplication
+    // Matches: (factor1)(factor2), (factor1)*(factor2), (factor1)(factor2)(factor3), etc.
+    const factorPattern = /\(([^()]+)\)/g;
+    const matches = [...cleaned.matchAll(factorPattern)];
+    
+    // If we don't have at least 2 factors, it's not a product of factors
+    if (matches.length < 2) return null;
+    
+    // Also check that none of the factors are coordinate pairs (e.g., "(2,-1)" should not be a factor)
+    // If any factor looks like a coordinate pair (number,number), exclude it
+    for (const match of matches) {
+        const factorContent = match[1]; // Content inside parentheses
+        if (/^-?\d+,-?\d+$/.test(factorContent)) {
+            return null; // One of the "factors" is actually a coordinate pair
+        }
+    }
+    
+    // Check if the expression is primarily composed of these factors
+    // Simple validation: try to remove all factors and see if anything meaningful remains
+    let remaining = cleaned;
+    for (const match of matches) {
+        // Remove this factor from the string
+        // Use a simple string replace instead of regex to avoid escaping issues
+        const factorStr = match[0]; // e.g., "(m+9)"
+        // Find all occurrences and remove them
+        while (remaining.includes(factorStr)) {
+            remaining = remaining.replace(factorStr, '');
+        }
+    }
+    remaining = remaining.replace(/\*/g, ''); // Remove any * characters
+    
+    // If nothing remains after removing all factors and *, the expression is valid
+    // This means the expression consists only of the factors we found (in any order)
+    if (remaining.length === 0) {
+        return matches.map(m => m[1]); // Return content inside parentheses
+    }
+    
+    return null;
+}
+
+// Normalize the order of terms within a factor (e.g., "-3+m" -> "m-3", "9+m" -> "m+9")
+function normalizeFactorTerms(factor) {
+    if (!factor || typeof factor !== 'string') return factor;
+    
+    const parsedTerms = [];
+    let currentSign = '+';
+    let i = 0;
+    
+    // Handle leading negative sign
+    if (factor.startsWith('-')) {
+        currentSign = '-';
+        i = 1;
+    } else if (factor.startsWith('+')) {
+        currentSign = '+';
+        i = 1;
+    }
+    
+    // Parse the rest of the factor
+    while (i < factor.length) {
+        // Find the next operator or end of string
+        let nextOpIndex = factor.length;
+        let nextOp = null;
+        
+        for (let j = i; j < factor.length; j++) {
+            if (factor[j] === '+' || factor[j] === '-') {
+                nextOpIndex = j;
+                nextOp = factor[j];
+                break;
+            }
+        }
+        
+        // Extract the term
+        const term = factor.substring(i, nextOpIndex).trim();
+        if (term) {
+            parsedTerms.push({
+                sign: currentSign,
+                term: term
+            });
+        }
+        
+        // Move to next operator
+        if (nextOp) {
+            currentSign = nextOp;
+            i = nextOpIndex + 1;
+        } else {
+            break;
+        }
+    }
+    
+    // Separate variables and constants
+    const variables = [];
+    const constants = [];
+    
+    parsedTerms.forEach(({ sign, term }) => {
+        const isVariable = /[a-z]/.test(term);
+        const value = {
+            sign: sign,
+            term: term
+        };
+        
+        if (isVariable) {
+            variables.push(value);
+        } else {
+            constants.push(value);
+        }
+    });
+    
+    // Sort: variables first (alphabetically), then constants (numerically)
+    variables.sort((a, b) => a.term.localeCompare(b.term));
+    constants.sort((a, b) => {
+        const numA = parseInt(a.term) || 0;
+        const numB = parseInt(b.term) || 0;
+        return numA - numB;
+    });
+    
+    // Reconstruct the factor
+    const allTerms = [...variables, ...constants];
+    let result = '';
+    
+    allTerms.forEach(({ sign, term }, index) => {
+        if (index === 0) {
+            // First term: use sign only if negative, otherwise no sign
+            if (sign === '-') {
+                result += `-${term}`;
+            } else {
+                result += term;
+            }
+        } else {
+            // Subsequent terms: always include sign
+            result += `${sign}${term}`;
+        }
+    });
+    
+    return result;
+}
+
+// Canonicalize factors: normalize terms within each factor, then sort factors
+function canonicalizeFactors(factors) {
+    if (!factors || !Array.isArray(factors) || factors.length === 0) return null;
+    
+    // Normalize terms within each factor
+    const normalizedFactors = factors.map(factor => normalizeFactorTerms(factor));
+    
+    // Sort factors alphabetically for consistent comparison
+    normalizedFactors.sort();
+    
+    // Return as a string representation
+    return normalizedFactors.join('*');
+}
+
 // Check if answer is correct
 function checkAnswer(userInput, correctAnswer, alternativeAnswers = []) {
     const normalized = normalizeInput(userInput);
     const correct = normalizeInput(correctAnswer);
     
+    console.log('checkAnswer called:', { userInput, normalized, correctAnswer, correct });
+    
     // Check against primary answer
-    if (normalized === correct) return true;
+    if (normalized === correct) {
+        console.log('Direct match!');
+        return true;
+    }
     
     // Check against alternative answers (pre-normalize to avoid redundant calls)
     const normalizedAlternatives = alternativeAnswers.map(alt => normalizeInput(alt));
     if (normalizedAlternatives.includes(normalized)) return true;
     
-    // Special handling for coordinate pairs
+    // Special handling for coordinate pairs (must be checked BEFORE factor extraction)
     const coordPattern = /^\((-?\d+),(-?\d+)\)$/;
     const correctCoords = correct.match(coordPattern);
     if (correctCoords) {
+        // If correct answer is a coordinate pair, user input must match exactly (no reordering)
         const userCoords = normalized.match(coordPattern);
         if (userCoords && userCoords[1] === correctCoords[1] && userCoords[2] === correctCoords[2]) {
             return true;
         }
+        // If correct is a coordinate but user doesn't match, return false (don't check factors)
+        return false;
     }
     
     // Special handling for integers
@@ -1148,25 +1321,56 @@ function checkAnswer(userInput, correctAnswer, alternativeAnswers = []) {
         }
     }
     
+    // Special handling for products of factors (e.g., "(m-3)(m+9)" vs "(m+9)(m-3)" or "(-3+m)(9+m)")
+    // Only check factors if the answer doesn't match other special cases (coordinates, integers, fractions)
+    console.log('Checking factors - userInput:', normalized, 'correct:', correct);
+    const userFactors = extractFactors(normalized);
+    const correctFactors = extractFactors(correct);
+    
+    console.log('Extracted factors - userFactors:', userFactors, 'correctFactors:', correctFactors);
+    
+    if (userFactors && correctFactors && userFactors.length === correctFactors.length) {
+        const userCanonical = canonicalizeFactors(userFactors);
+        const correctCanonical = canonicalizeFactors(correctFactors);
+        
+        console.log('Canonical forms - user:', userCanonical, 'correct:', correctCanonical, 'match:', userCanonical === correctCanonical);
+        
+        if (userCanonical && correctCanonical && userCanonical === correctCanonical) {
+            console.log('Factors match!');
+            return true;
+        }
+    } else {
+        console.log('Factor extraction failed or mismatch:', {
+            userFactors: userFactors,
+            correctFactors: correctFactors,
+            userFactorsLength: userFactors?.length,
+            correctFactorsLength: correctFactors?.length
+        });
+    }
+    
     return false;
 }
 
 // Submit answer
 async function submitAnswer(problemNum, problemId) {
+    console.log('submitAnswer called:', { problemNum, problemId });
     const input = document.getElementById(`input-${problemNum}`);
     const feedback = document.getElementById(`feedback-${problemNum}`);
     const toggleBtn = document.getElementById(`toggle-${problemNum}`);
     
     // Prevent submission if already correct or if input is disabled (failed after 3 attempts)
     if (attempts[problemId] && attempts[problemId].correct) {
+        console.log('Already correct, returning');
         return;
     }
     
     if (input && input.disabled) {
+        console.log('Input disabled, returning');
         return;
     }
     
     const userAnswer = input.value.trim();
+    console.log('User answer:', userAnswer);
     
     if (!userAnswer) {
         feedback.textContent = "Please enter an answer.";
@@ -1175,9 +1379,14 @@ async function submitAnswer(problemNum, problemId) {
     }
     
     const problem = currentQuestions.find(q => q.id === problemNum);
-    if (!problem) return;
+    if (!problem) {
+        console.log('Problem not found:', problemNum);
+        return;
+    }
     
+    console.log('Problem found:', { id: problem.id, normalized: problem.normalized, alternativeAnswers: problem.alternativeAnswers });
     const isCorrect = checkAnswer(userAnswer, problem.normalized, problem.alternativeAnswers || []);
+    console.log('checkAnswer result:', isCorrect);
     
     if (isCorrect) {
         attempts[problemId].correct = true;
